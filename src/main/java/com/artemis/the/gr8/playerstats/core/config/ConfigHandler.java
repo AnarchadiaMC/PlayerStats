@@ -21,7 +21,7 @@ public final class ConfigHandler extends YamlFileHandler {
         super("config.yml");
         config = super.getFileConfiguration();
 
-        configVersion = 8;
+        configVersion = 9;
         checkAndUpdateConfigVersion();
         MyLogger.setDebugLevel(getDebugLevel());
     }
@@ -582,5 +582,94 @@ public final class ConfigHandler extends YamlFileHandler {
                 return null;
             }
         }
+    }
+
+    // ---------------------- Database settings ----------------------
+
+    public boolean dbEnabled() {
+        return config.getBoolean("database.enabled", false);
+    }
+
+    public String dbType() {
+        return config.getString("database.type", "mongo");
+    }
+
+    public boolean dbGenerateTopOnLoad() {
+        return config.getBoolean("database.generate-top-on-load", true);
+    }
+
+    public boolean dbUpdatePlayerOnJoin() {
+        return config.getBoolean("database.update-player-on-join", true);
+    }
+
+    public int dbTopListSize() {
+        return config.getInt("database.top-list-size", getTopListMaxSize());
+    }
+
+    public java.util.List<String> dbTrackedStats() {
+        return config.getStringList("database.tracked-stats");
+    }
+
+    // Mongo
+    public String mongoUri() {
+        return config.getString("database.mongo.uri", "mongodb://localhost:27017");
+    }
+
+    public String mongoDatabase() {
+        return config.getString("database.mongo.database", "playerstats");
+    }
+
+    public String mongoPlayerCollection() {
+        return config.getString("database.mongo.collection-player", "player_stats");
+    }
+
+    public String mongoTopCollection() {
+        return config.getString("database.mongo.collection-top", "top_stats");
+    }
+
+    // Postgres
+    public String pgHost() {
+        return config.getString("database.postgres.host", "localhost");
+    }
+
+    public int pgPort() {
+        return config.getInt("database.postgres.port", 5432);
+    }
+
+    public String pgDatabase() {
+        return config.getString("database.postgres.database", "playerstats");
+    }
+
+    public String pgUser() {
+        return config.getString("database.postgres.user", "postgres");
+    }
+
+    public String pgPassword() {
+        return config.getString("database.postgres.password", "postgres");
+    }
+
+    public String pgSchema() {
+        return config.getString("database.postgres.schema", "public");
+    }
+
+    public boolean pgSsl() {
+        return config.getBoolean("database.postgres.ssl", false);
+    }
+
+    public String pgPlayerTable() {
+        return config.getString("database.postgres.table-player", "player_stats");
+    }
+
+    public String pgTopTable() {
+        return config.getString("database.postgres.table-top", "top_stats");
+    }
+
+    // Pool
+    public int poolMaxSize() {
+        return config.getInt("database.pool.max-pool-size", 5);
+    }
+
+    public long poolConnectionTimeoutMs() {
+        return config.getLong("database.pool.connection-timeout-ms", 10000L);
     }
 }

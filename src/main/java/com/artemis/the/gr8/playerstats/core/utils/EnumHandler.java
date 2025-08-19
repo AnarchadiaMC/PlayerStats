@@ -195,6 +195,7 @@ public final class EnumHandler {
             case BLOCK -> subStat = "block";
             case ENTITY -> subStat = "entity";
             case ITEM -> subStat = "item";
+            case UNTYPED -> subStat = "sub-statistic";
         }
         return subStat;
     }

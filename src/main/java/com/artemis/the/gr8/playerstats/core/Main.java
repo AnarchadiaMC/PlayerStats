@@ -16,8 +16,12 @@ import com.artemis.the.gr8.playerstats.core.statistic.StatRequestManager;
 import com.artemis.the.gr8.playerstats.core.utils.Closable;
 import com.artemis.the.gr8.playerstats.core.utils.OfflinePlayerHandler;
 import com.artemis.the.gr8.playerstats.core.utils.Reloadable;
+import com.artemis.the.gr8.playerstats.core.db.DatabaseManager;
+import com.artemis.the.gr8.playerstats.core.db.StatKeyUtil;
+import com.artemis.the.gr8.playerstats.api.RequestGenerator;
 import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
+
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
@@ -28,7 +32,11 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import org.bukkit.Statistic;
+import org.bukkit.Material;
+import org.bukkit.entity.EntityType;
 
 /**
  * PlayerStats' Main class
@@ -59,6 +67,35 @@ public final class Main extends JavaPlugin implements PlayerStats {
         
         //finish up
         this.getLogger().info("Enabled PlayerStats!");
+    }
+
+    private void generateTopListsAsync(DatabaseManager dbm) {
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                for (String key : dbm.trackedStatKeys()) {
+                    if (!StatKeyUtil.isValidTrackedFormat(key)) continue;
+                    String[] parts = key.split(":");
+                    String type = parts[0];
+                    String statName = parts[1];
+                    try {
+                        Statistic stat = Statistic.valueOf(statName);
+                        RequestGenerator<LinkedHashMap<String, Integer>> gen = statManager.createTopStatRequest(dbm.config().topListSize());
+                        com.artemis.the.gr8.playerstats.api.StatRequest<LinkedHashMap<String, Integer>> req;
+                        switch (type) {
+                            case "UNTYPED" -> req = gen.untyped(stat);
+                            case "BLOCK" -> req = gen.blockOrItemType(stat, Material.valueOf(parts[2]));
+                            case "ITEM" -> req = gen.blockOrItemType(stat, Material.valueOf(parts[2]));
+                            case "ENTITY" -> req = gen.entityType(stat, EntityType.valueOf(parts[2]));
+                            default -> { continue; }
+                        }
+                        LinkedHashMap<String, Integer> top = statManager.executeTopRequest(req).value();
+                        dbm.upsertTopList(key, top);
+                    } catch (IllegalArgumentException ignored) {
+                    } catch (Exception ignored) {
+                    }
+                }
+            } catch (Exception ignored) { }
+        });
     }
 
     @Override
@@ -117,6 +154,16 @@ public final class Main extends JavaPlugin implements PlayerStats {
 
         statManager = new StatRequestManager();
         threadManager = new ThreadManager(this);
+
+        // Initialize and register DatabaseManager for reload and close hooks
+        DatabaseManager dbm = DatabaseManager.getInstance();
+        registerClosable(dbm);
+        registerReloadable(dbm::reloadFromConfig);
+
+        // Optionally generate top lists on load
+        if (dbm.config().enabled() && dbm.config().generateTopOnLoad()) {
+            generateTopListsAsync(dbm);
+        }
     }
 
     /**

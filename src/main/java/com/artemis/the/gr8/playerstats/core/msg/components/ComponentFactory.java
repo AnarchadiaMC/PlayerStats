@@ -387,7 +387,7 @@ public class ComponentFactory {
     private @NotNull TranslatableComponent.Builder killEntityBuilder(@NotNull TextComponent subStat) {
         return translatable()
                 .key(LanguageKeyHandler.getCustomKeyForKillEntity())  //"Killed %s"
-                .args(subStat);
+                .arguments(subStat);
     }
 
     /**
@@ -404,7 +404,7 @@ public class ComponentFactory {
                 .append(space())
                 .append(translatable()
                         .key(LanguageKeyHandler.getCustomKeyForEntityKilledByArg()) //"by %s"
-                        .args(subStat));
+                        .arguments(subStat));
     }
 
     private @NotNull TextComponent statNumberWithHoverText(String mainNumber, String hoverNumber,

@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------------------------------------ #
 #                                     PlayerStats Configuration                                          #
 # ------------------------------------------------------------------------------------------------------ #
-config-version: 8
+config-version: 9
 
 
 #                                # ------------------------------- #                                     #
@@ -178,6 +178,58 @@ individual-statistics:
 
   stat-numbers: '#ADE7FF'
   stat-numbers-style: none
+
+#                                # ------------------------------- #                                     #
+#                                #            Database              #                                     #
+#                                # ------------------------------- #                                     #
+
+# Enable database syncing for leaderboards and per-player stats
+database:
+  enabled: false
+  type: "postgres"  # options: mongo, postgres (default: postgres)
+  generate-top-on-load: true
+  update-player-on-join: true
+  top-list-size: 10  # top size to generate in DB if used
+
+  # Stats to sync with the database. Use the format:
+  #   - "UNTYPED:STAT_NAME"
+  #   - "BLOCK:STAT_NAME:MATERIAL_NAME"
+  #   - "ITEM:STAT_NAME:MATERIAL_NAME"
+  #   - "ENTITY:STAT_NAME:ENTITY_TYPE"
+  tracked-stats:
+    - "UNTYPED:PLAY_ONE_MINUTE"
+    - "UNTYPED:MOB_KILLS"
+    - "UNTYPED:PLAYER_KILLS"
+    - "UNTYPED:DEATHS"
+    - "UNTYPED:JUMP"
+    - "UNTYPED:WALK_ONE_CM"
+
+  # MongoDB settings
+  mongo:
+    uri: "mongodb://localhost:27017"
+    database: "playerstats"
+    collection-player: "player_stats"
+    collection-top: "top_stats"
+
+  # PostgreSQL settings
+  postgres:
+    host: "localhost"
+    port: 5432
+    database: "playerstats"
+    user: "postgres"
+    # Use a strong password. Consider using environment variables or a secrets manager.
+    # Example for environment variable expansion (if supported by your runtime): ${PSQL_PASSWORD}
+    password: ""
+    schema: "public"
+    # For remote databases, enabling SSL is strongly recommended
+    ssl: false
+    table-player: "player_stats"
+    table-top: "top_stats"
+
+  # Connection pool
+  pool:
+    max-pool-size: 5
+    connection-timeout-ms: 10000
 
 
 total-server:

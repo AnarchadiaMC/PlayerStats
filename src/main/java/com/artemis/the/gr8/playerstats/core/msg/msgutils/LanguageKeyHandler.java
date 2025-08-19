@@ -212,7 +212,7 @@ public final class LanguageKeyHandler extends YamlFileHandler {
     public @Nullable String getEntityKey(EntityType entity) {
         if (entity == null || entity == EntityType.UNKNOWN) return null;
         else {
-            return "entity.minecraft." + entity.getKey().getKey();
+            return entity.getTranslationKey();
         }
     }
 
@@ -227,7 +227,7 @@ public final class LanguageKeyHandler extends YamlFileHandler {
             return getBlockKey(item);
         }
         else {
-            return "item.minecraft." + item.getKey().getKey();
+            return item.getTranslationKey();
         }
     }
 
@@ -241,10 +241,10 @@ public final class LanguageKeyHandler extends YamlFileHandler {
         else if (block.toString().toLowerCase(Locale.ENGLISH).contains("wall_banner")) {  //replace wall_banner with regular banner, since there is no key for wall banners
             String blockName = block.toString().toLowerCase(Locale.ENGLISH).replace("wall_", "");
             Material newBlock = EnumHandler.getInstance().getBlockEnum(blockName);
-            return (newBlock != null) ? "block.minecraft." + newBlock.getKey().getKey() : null;
+            return (newBlock != null) ? newBlock.getTranslationKey() : null;
         }
         else {
-            return "block.minecraft." + block.getKey().getKey();
+            return block.getTranslationKey();
         }
     }
 
