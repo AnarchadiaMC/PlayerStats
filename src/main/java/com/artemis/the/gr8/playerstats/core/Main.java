@@ -98,6 +98,22 @@ public final class Main extends JavaPlugin implements PlayerStats {
         });
     }
 
+    private void schedulePeriodicTopLists(DatabaseManager dbm) {
+        if (!config.dbGenerateTopPeriodically()) return;
+        int minutes = Math.max(1, config.dbGenerateTopIntervalMinutes());
+        long periodTicks = minutes * 60L * 20L;
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                try {
+                    if (dbm.config().enabled()) {
+                        generateTopListsAsync(dbm);
+                    }
+                } catch (Exception ignored) { }
+            }
+        }.runTaskTimerAsynchronously(this, periodTicks, periodTicks);
+    }
+
     @Override
     public void onDisable() {
         closables.forEach(Closable::close);
@@ -164,6 +180,8 @@ public final class Main extends JavaPlugin implements PlayerStats {
         if (dbm.config().enabled() && dbm.config().generateTopOnLoad()) {
             generateTopListsAsync(dbm);
         }
+        // Optionally schedule periodic generation of top lists
+        schedulePeriodicTopLists(dbm);
     }
 
     /**

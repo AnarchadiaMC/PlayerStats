@@ -18,6 +18,11 @@ public final class DatabaseConfig {
     private final int topListSize;
     private final List<String> trackedStats;
 
+    // Async and caching
+    private final int asyncThreads;
+    private final long playerUpdateMinIntervalMs;
+    private final long topUpsertMinIntervalMs;
+
     // Pool
     private final int maxPoolSize;
     private final long connectionTimeoutMs;
@@ -43,6 +48,7 @@ public final class DatabaseConfig {
             boolean enabled, DbType type,
             boolean generateTopOnLoad, boolean updatePlayerOnJoin, int topListSize,
             List<String> trackedStats,
+            int asyncThreads, long playerUpdateMinIntervalMs, long topUpsertMinIntervalMs,
             int maxPoolSize, long connectionTimeoutMs,
             String mongoUri, String mongoDatabase, String mongoPlayerCollection, String mongoTopCollection,
             String pgHost, int pgPort, String pgDatabase, String pgUser, String pgPassword, String pgSchema, boolean pgSsl,
@@ -53,6 +59,9 @@ public final class DatabaseConfig {
         this.updatePlayerOnJoin = updatePlayerOnJoin;
         this.topListSize = topListSize;
         this.trackedStats = List.copyOf(trackedStats);
+        this.asyncThreads = asyncThreads;
+        this.playerUpdateMinIntervalMs = playerUpdateMinIntervalMs;
+        this.topUpsertMinIntervalMs = topUpsertMinIntervalMs;
         this.maxPoolSize = maxPoolSize;
         this.connectionTimeoutMs = connectionTimeoutMs;
         this.mongoUri = mongoUri;
@@ -80,6 +89,9 @@ public final class DatabaseConfig {
                 c.dbUpdatePlayerOnJoin(),
                 c.dbTopListSize(),
                 c.dbTrackedStats(),
+                c.dbAsyncThreads(),
+                c.dbPlayerUpdateMinIntervalMs(),
+                c.dbTopUpsertMinIntervalMs(),
                 c.poolMaxSize(),
                 c.poolConnectionTimeoutMs(),
                 c.mongoUri(),
@@ -110,6 +122,10 @@ public final class DatabaseConfig {
     public boolean updatePlayerOnJoin() { return updatePlayerOnJoin; }
     public int topListSize() { return topListSize; }
     public List<String> trackedStats() { return trackedStats; }
+
+    public int asyncThreads() { return asyncThreads; }
+    public long playerUpdateMinIntervalMs() { return playerUpdateMinIntervalMs; }
+    public long topUpsertMinIntervalMs() { return topUpsertMinIntervalMs; }
 
     public int maxPoolSize() { return maxPoolSize; }
     public long connectionTimeoutMs() { return connectionTimeoutMs; }

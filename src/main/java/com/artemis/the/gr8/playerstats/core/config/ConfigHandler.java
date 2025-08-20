@@ -591,11 +591,19 @@ public final class ConfigHandler extends YamlFileHandler {
     }
 
     public String dbType() {
-        return config.getString("database.type", "mongo");
+        return config.getString("database.type", "postgres");
     }
 
     public boolean dbGenerateTopOnLoad() {
         return config.getBoolean("database.generate-top-on-load", true);
+    }
+
+    public boolean dbGenerateTopPeriodically() {
+        return config.getBoolean("database.generate-top-periodically", false);
+    }
+
+    public int dbGenerateTopIntervalMinutes() {
+        return config.getInt("database.generate-top-interval-minutes", 15);
     }
 
     public boolean dbUpdatePlayerOnJoin() {
@@ -608,6 +616,19 @@ public final class ConfigHandler extends YamlFileHandler {
 
     public java.util.List<String> dbTrackedStats() {
         return config.getStringList("database.tracked-stats");
+    }
+
+    // Async and caching controls
+    public int dbAsyncThreads() {
+        return config.getInt("database.async-threads", Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
+    }
+
+    public long dbPlayerUpdateMinIntervalMs() {
+        return config.getLong("database.player-update-min-interval-ms", 10_000L);
+    }
+
+    public long dbTopUpsertMinIntervalMs() {
+        return config.getLong("database.top-upsert-min-interval-ms", 60_000L);
     }
 
     // Mongo
