@@ -17,6 +17,7 @@ public final class DatabaseConfig {
     private final boolean updatePlayerOnJoin;
     private final int topListSize;
     private final List<String> trackedStats;
+    private final boolean verboseLogging;
 
     // Async and caching
     private final int asyncThreads;
@@ -48,6 +49,7 @@ public final class DatabaseConfig {
             boolean enabled, DbType type,
             boolean generateTopOnLoad, boolean updatePlayerOnJoin, int topListSize,
             List<String> trackedStats,
+            boolean verboseLogging,
             int asyncThreads, long playerUpdateMinIntervalMs, long topUpsertMinIntervalMs,
             int maxPoolSize, long connectionTimeoutMs,
             String mongoUri, String mongoDatabase, String mongoPlayerCollection, String mongoTopCollection,
@@ -59,6 +61,7 @@ public final class DatabaseConfig {
         this.updatePlayerOnJoin = updatePlayerOnJoin;
         this.topListSize = topListSize;
         this.trackedStats = List.copyOf(trackedStats);
+        this.verboseLogging = verboseLogging;
         this.asyncThreads = asyncThreads;
         this.playerUpdateMinIntervalMs = playerUpdateMinIntervalMs;
         this.topUpsertMinIntervalMs = topUpsertMinIntervalMs;
@@ -89,6 +92,7 @@ public final class DatabaseConfig {
                 c.dbUpdatePlayerOnJoin(),
                 c.dbTopListSize(),
                 c.dbTrackedStats(),
+                c.dbVerboseLogging(),
                 c.dbAsyncThreads(),
                 c.dbPlayerUpdateMinIntervalMs(),
                 c.dbTopUpsertMinIntervalMs(),
@@ -122,6 +126,7 @@ public final class DatabaseConfig {
     public boolean updatePlayerOnJoin() { return updatePlayerOnJoin; }
     public int topListSize() { return topListSize; }
     public List<String> trackedStats() { return trackedStats; }
+    public boolean verboseLogging() { return verboseLogging; }
 
     public int asyncThreads() { return asyncThreads; }
     public long playerUpdateMinIntervalMs() { return playerUpdateMinIntervalMs; }

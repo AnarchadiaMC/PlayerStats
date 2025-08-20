@@ -7,6 +7,8 @@ import org.bukkit.entity.EntityType;
 
 import java.util.Locale;
 import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class StatKeyUtil {
 
@@ -32,6 +34,38 @@ public final class StatKeyUtil {
             case "BLOCK", "ITEM", "ENTITY" -> parts.length == 3;
             default -> false;
         };
+    }
+
+    /**
+     * Enumerate all possible tracked keys across Bukkit enums.
+     * This is intentionally exhaustive; downstream callers should handle
+     * IllegalArgumentException for combos that aren't applicable.
+     */
+    public static List<String> enumerateAllKeys() {
+        List<String> keys = new ArrayList<>();
+        for (Statistic stat : Statistic.values()) {
+            switch (stat.getType()) {
+                case UNTYPED -> keys.add(join("UNTYPED", stat.name()));
+                case BLOCK -> {
+                    for (org.bukkit.Material m : org.bukkit.Material.values()) {
+                        if (m.isBlock()) keys.add(join("BLOCK", stat.name(), m.name()));
+                    }
+                }
+                case ITEM -> {
+                    for (org.bukkit.Material m : org.bukkit.Material.values()) {
+                        if (m.isItem()) keys.add(join("ITEM", stat.name(), m.name()));
+                    }
+                }
+                case ENTITY -> {
+                    for (EntityType e : EntityType.values()) {
+                        if (e != EntityType.UNKNOWN && e.isAlive()) {
+                            keys.add(join("ENTITY", stat.name(), e.name()));
+                        }
+                    }
+                }
+            }
+        }
+        return keys;
     }
 
     private static String nameOf(Material m) { return m == null ? "" : m.name(); }

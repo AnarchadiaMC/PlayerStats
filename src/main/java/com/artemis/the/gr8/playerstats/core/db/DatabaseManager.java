@@ -15,7 +15,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
  * Central entry point for database operations. Selects a provider based on config and proxies calls.
@@ -35,6 +34,7 @@ public final class DatabaseManager implements Closable {
     }
 
     private DatabaseConfig configSnapshot;
+    private List<String> trackedKeysCache;
     private DbProvider provider;
 
     // Async execution and simple write-dedup caches
@@ -48,15 +48,21 @@ public final class DatabaseManager implements Closable {
 
     public void reloadFromConfig() {
         this.configSnapshot = DatabaseConfig.from(ConfigHandler.getInstance());
-        // Validate tracked stat formats
-        long invalid = this.configSnapshot.trackedStats().stream().filter(s -> !StatKeyUtil.isValidTrackedFormat(s)).count();
-        if (invalid > 0) {
-            MyLogger.logWarning("Database config contains " + invalid + " invalid tracked-stats entries. They will be ignored.");
-        }
+        // Enumerate and cache all trackable stat keys; ignore config tracked-stats
+        this.trackedKeysCache = StatKeyUtil.enumerateAllKeys();
+        dbLog("DatabaseManager tracking " + trackedKeysCache.size() + " statistic keys (config tracked-stats ignored)");
+        dbLog("DB config: type=" + configSnapshot.type() + 
+                ", asyncThreads=" + Math.max(1, configSnapshot.asyncThreads()) +
+                ", playerUpdateMinIntervalMs=" + configSnapshot.playerUpdateMinIntervalMs() +
+                ", topUpsertMinIntervalMs=" + configSnapshot.topUpsertMinIntervalMs() +
+                ", topListSize=" + configSnapshot.topListSize() +
+                ", generateTopOnLoad=" + configSnapshot.generateTopOnLoad() +
+                ", updatePlayerOnJoin=" + configSnapshot.updatePlayerOnJoin());
         if (!configSnapshot.enabled()) {
             shutdownExecutor();
             provider = new NoopProvider();
             MyLogger.logLowLevelMsg("Database disabled in config; using No-Op provider.");
+            dbLog("DB disabled -> No-Op provider active");
             return;
         }
         // Select provider based on type
@@ -69,6 +75,7 @@ public final class DatabaseManager implements Closable {
             provider.start();
             // (Re)initialize async executor
             initExecutor(Math.max(1, configSnapshot.asyncThreads()));
+            dbLog("DB provider initialized: " + provider.getClass().getSimpleName());
         } catch (Exception e) {
             MyLogger.logWarning("Failed to initialize DB provider; falling back to No-Op. " + e.getMessage());
             provider = new NoopProvider();
@@ -79,9 +86,7 @@ public final class DatabaseManager implements Closable {
     public DatabaseConfig config() { return configSnapshot; }
 
     public List<String> trackedStatKeys() {
-        return configSnapshot.trackedStats().stream()
-                .filter(StatKeyUtil::isValidTrackedFormat)
-                .collect(Collectors.toList());
+        return trackedKeysCache;
     }
 
     public void updatePlayerStat(UUID uuid, String playerName, String statKey, int value) {
@@ -95,13 +100,15 @@ public final class DatabaseManager implements Closable {
         PlayerStatCacheEntry prev = playerCache.get(key);
         long minInterval = Math.max(0L, configSnapshot.playerUpdateMinIntervalMs());
         if (prev != null && prev.value == value && (now - prev.lastWriteAt) < minInterval) {
-            MyLogger.logHighLevelMsg("DB skip playerStat (unchanged within interval): " + key);
+            dbLog("DB skip playerStat (unchanged within interval): " + key);
             return;
         }
+        dbLog("Queue playerStat: " + key + " value=" + value);
         playerCache.put(key, new PlayerStatCacheEntry(value, now));
         executor.submit(() -> {
             try {
                 provider.updatePlayerStat(uuid, playerName, statKey, value);
+                dbLog("Wrote playerStat: " + key + " value=" + value);
             } catch (Exception e) {
                 MyLogger.logWarning("Async updatePlayerStat failed: " + e.getMessage());
             }
@@ -119,13 +126,16 @@ public final class DatabaseManager implements Closable {
         TopCacheEntry prev = topCache.get(statKey);
         long minInterval = Math.max(0L, configSnapshot.topUpsertMinIntervalMs());
         if (prev != null && prev.hash.equals(hash) && (now - prev.lastWriteAt) < minInterval) {
-            MyLogger.logHighLevelMsg("DB skip topList (unchanged within interval): " + statKey);
+            dbLog("DB skip topList (unchanged within interval): " + statKey);
             return;
         }
+        int entries = (top == null) ? 0 : top.size();
+        dbLog("Queue topList upsert: key=" + statKey + " entries=" + Math.min(entries, max) + " limit=" + max);
         topCache.put(statKey, new TopCacheEntry(hash, now));
         executor.submit(() -> {
             try {
                 provider.upsertTopList(statKey, top, max);
+                dbLog("Upserted topList: key=" + statKey + " entries=" + Math.min(entries, max));
             } catch (Exception e) {
                 MyLogger.logWarning("Async upsertTopList failed: " + e.getMessage());
             }
@@ -159,7 +169,7 @@ public final class DatabaseManager implements Closable {
             return t;
         };
         executor = Executors.newFixedThreadPool(Math.max(1, threads), tf);
-        MyLogger.logLowLevelMsg("Initialized DB async executor with " + Math.max(1, threads) + " threads");
+        dbLog("Initialized DB async executor with " + Math.max(1, threads) + " threads");
     }
 
     private void shutdownExecutor() {
@@ -172,6 +182,12 @@ public final class DatabaseManager implements Closable {
                 try { executor.shutdownNow(); } catch (Exception ignored) {}
                 executor = null;
             }
+        }
+    }
+
+    private void dbLog(String msg) {
+        if (configSnapshot != null && configSnapshot.verboseLogging()) {
+            MyLogger.logLowLevelMsg(msg);
         }
     }
 

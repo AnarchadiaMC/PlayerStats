@@ -49,6 +49,9 @@ public final class PostgresProvider implements DbProvider {
         validateSecurity(config);
 
         this.dataSource = new HikariDataSource(hc);
+        if (config.verboseLogging()) {
+            MyLogger.logLowLevelMsg("PostgresProvider initialized for db='" + config.pgDatabase() + "' schema='" + schema + "'");
+        }
     }
 
     @Override

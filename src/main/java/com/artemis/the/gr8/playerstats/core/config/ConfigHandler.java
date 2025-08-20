@@ -631,6 +631,10 @@ public final class ConfigHandler extends YamlFileHandler {
         return config.getLong("database.top-upsert-min-interval-ms", 60_000L);
     }
 
+    public boolean dbVerboseLogging() {
+        return config.getBoolean("database.verbose-logging", false);
+    }
+
     // Mongo
     public String mongoUri() {
         return config.getString("database.mongo.uri", "mongodb://localhost:27017");

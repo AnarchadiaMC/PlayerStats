@@ -201,59 +201,9 @@ database:
   # Minimum interval between writing an unchanged top list for the same stat key (ms)
   top-upsert-min-interval-ms: 60000
 
-  # Stats to sync with the database. Use the format:
-  #   - "UNTYPED:STAT_NAME"
-  #   - "BLOCK:STAT_NAME:MATERIAL_NAME"
-  #   - "ITEM:STAT_NAME:MATERIAL_NAME"
-  #   - "ENTITY:STAT_NAME:ENTITY_TYPE"
-  #
-  # Default tracked-stats (examples you can copy). Names must match Bukkit enums.
-  # Use UPPERCASE enum names. Reference:
-  #  - Statistics: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Statistic.html
-  #  - Materials:  https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Material.html
-  #  - Entities:   https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/entity/EntityType.html
-  #
-  # Core leaderboards (recommended):
-  #   - "UNTYPED:PLAY_ONE_MINUTE"   # total play time (ticks played)
-  #   - "UNTYPED:MOB_KILLS"
-  #   - "UNTYPED:PLAYER_KILLS"
-  #   - "UNTYPED:DEATHS"
-  #   - "UNTYPED:JUMP"
-  #   - "UNTYPED:WALK_ONE_CM"
-  #   - "UNTYPED:SPRINT_ONE_CM"
-  #   - "UNTYPED:SWIM_ONE_CM"
-  #   - "UNTYPED:CLIMB_ONE_CM"
-  #   - "UNTYPED:FLY_ONE_CM"
-  #
-  # Mining leaderboards (BLOCK -> MINE_BLOCK):
-  #   - "BLOCK:MINE_BLOCK:STONE"
-  #   - "BLOCK:MINE_BLOCK:DEEPSLATE"
-  #   - "BLOCK:MINE_BLOCK:DIAMOND_ORE"
-  #   - "BLOCK:MINE_BLOCK:DEEPSLATE_DIAMOND_ORE"
-  #
-  # Item leaderboards (ITEM):
-  #   - "ITEM:USE_ITEM:TORCH"
-  #   - "ITEM:USE_ITEM:WATER_BUCKET"
-  #   - "ITEM:CRAFT_ITEM:OAK_PLANKS"
-  #   - "ITEM:BREAK_ITEM:IRON_PICKAXE"
-  #
-  # Mob leaderboards (ENTITY):
-  #   - "ENTITY:KILL_ENTITY:ZOMBIE"
-  #   - "ENTITY:KILL_ENTITY:CREEPER"
-  #   - "ENTITY:ENTITY_KILLED_BY:ZOMBIE"   # how often players were killed by ZOMBIE
-  #
-  # Notes:
-  #  - Keep this list small to reduce DB load; start with the Core list above.
-  #  - Distance stats are in centimeters; display units are configured in the Units section.
-  #  - "top-list-size" (in this database section) controls how many entries are stored in DB;
-  #    the on-chat display length is configured by "top-list-max-size" near the top of this file.
-  tracked-stats:
-    - "UNTYPED:PLAY_ONE_MINUTE"
-    - "UNTYPED:MOB_KILLS"
-    - "UNTYPED:PLAYER_KILLS"
-    - "UNTYPED:DEATHS"
-    - "UNTYPED:JUMP"
-    - "UNTYPED:WALK_ONE_CM"
+  # Verbose database activity logging (queueing/writes/provider init). Adds database-specific logs on top of debug-level.
+  # Default: false
+  verbose-logging: false
 
   # MongoDB settings
   mongo:

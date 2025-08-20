@@ -56,7 +56,9 @@ public final class MongoDbProvider implements DbProvider {
         database = client.getDatabase(config.mongoDatabase());
         playerCol = database.getCollection(config.mongoPlayerCollection());
         topCol = database.getCollection(config.mongoTopCollection());
-        MyLogger.logLowLevelMsg("MongoDbProvider initialized for db='" + config.mongoDatabase() + "'");
+        if (config.verboseLogging()) {
+            MyLogger.logLowLevelMsg("MongoDbProvider initialized for db='" + config.mongoDatabase() + "'");
+        }
     }
 
     @Override
