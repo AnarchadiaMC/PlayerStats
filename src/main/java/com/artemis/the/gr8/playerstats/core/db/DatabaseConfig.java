@@ -14,6 +14,8 @@ public final class DatabaseConfig {
     private final DbType type;
 
     private final boolean generateTopOnLoad;
+    private final boolean generateTopPeriodically;
+    private final int generateTopIntervalMinutes;
     private final boolean updatePlayerOnJoin;
     private final int topListSize;
     private final List<String> trackedStats;
@@ -47,7 +49,8 @@ public final class DatabaseConfig {
 
     private DatabaseConfig(
             boolean enabled, DbType type,
-            boolean generateTopOnLoad, boolean updatePlayerOnJoin, int topListSize,
+            boolean generateTopOnLoad, boolean generateTopPeriodically, int generateTopIntervalMinutes,
+            boolean updatePlayerOnJoin, int topListSize,
             List<String> trackedStats,
             boolean verboseLogging,
             int asyncThreads, long playerUpdateMinIntervalMs, long topUpsertMinIntervalMs,
@@ -58,6 +61,8 @@ public final class DatabaseConfig {
         this.enabled = enabled;
         this.type = type;
         this.generateTopOnLoad = generateTopOnLoad;
+        this.generateTopPeriodically = generateTopPeriodically;
+        this.generateTopIntervalMinutes = generateTopIntervalMinutes;
         this.updatePlayerOnJoin = updatePlayerOnJoin;
         this.topListSize = topListSize;
         this.trackedStats = List.copyOf(trackedStats);
@@ -89,6 +94,8 @@ public final class DatabaseConfig {
                 enabled,
                 type,
                 c.dbGenerateTopOnLoad(),
+                c.dbGenerateTopPeriodically(),
+                c.dbGenerateTopIntervalMinutes(),
                 c.dbUpdatePlayerOnJoin(),
                 c.dbTopListSize(),
                 c.dbTrackedStats(),
@@ -123,6 +130,8 @@ public final class DatabaseConfig {
     public DbType type() { return type; }
 
     public boolean generateTopOnLoad() { return generateTopOnLoad; }
+    public boolean generateTopPeriodically() { return generateTopPeriodically; }
+    public int generateTopIntervalMinutes() { return generateTopIntervalMinutes; }
     public boolean updatePlayerOnJoin() { return updatePlayerOnJoin; }
     public int topListSize() { return topListSize; }
     public List<String> trackedStats() { return trackedStats; }

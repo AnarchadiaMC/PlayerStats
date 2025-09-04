@@ -11,6 +11,7 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.UpdateOptions;
 import java.util.List;
@@ -62,7 +63,23 @@ public final class MongoDbProvider implements DbProvider {
     }
 
     @Override
-    public void start() { /* no-op */ }
+    public void start() {
+        // Ensure indexes exist for efficient lookups and upserts
+        try {
+            if (playerCol != null) {
+                playerCol.createIndex(new Document("uuid", 1), new IndexOptions().unique(true));
+            }
+        } catch (Exception e) {
+            MyLogger.logWarning("Mongo index creation failed for player uuid: " + e.getMessage());
+        }
+        try {
+            if (topCol != null) {
+                topCol.createIndex(new Document("statKey", 1), new IndexOptions().unique(true));
+            }
+        } catch (Exception e) {
+            MyLogger.logWarning("Mongo index creation failed for top statKey: " + e.getMessage());
+        }
+    }
 
     @Override
     public void updatePlayerStat(UUID uuid, String playerName, String statKey, int value) {

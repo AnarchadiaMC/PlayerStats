@@ -40,11 +40,20 @@ public final class PostgresProvider implements DbProvider {
         hc.setJdbcUrl(jdbcUrl);
         hc.setUsername(nullToEmpty(config.pgUser()));
         hc.setPassword(nullToEmpty(config.pgPassword()));
-        hc.setMaximumPoolSize(Math.max(1, config.maxPoolSize()));
+        int maxPool = Math.max(1, config.maxPoolSize());
+        hc.setMaximumPoolSize(maxPool);
+        hc.setMinimumIdle(Math.min(2, maxPool));
         hc.setConnectionTimeout(Math.max(1000L, config.connectionTimeoutMs()));
         hc.setPoolName("PlayerStats-PG-Pool");
         // Optional: schema via connection init SQL
         hc.setConnectionInitSql("SET search_path TO " + quotedIdent(schema));
+        // Keep connections alive on some managed providers
+        hc.setKeepaliveTime(300_000L); // 5 minutes
+        // Helpful for diagnosing slow/leaking calls when verbose logging is enabled
+        if (config.verboseLogging()) {
+            hc.setLeakDetectionThreshold(20_000L);
+            hc.setValidationTimeout(5_000L);
+        }
 
         validateSecurity(config);
 
@@ -71,6 +80,10 @@ public final class PostgresProvider implements DbProvider {
                     "updated_at BIGINT NOT NULL," +
                     "entries JSONB NOT NULL" +
                     ")");
+            // Indexes for common lookups and maintenance
+            st.execute("CREATE INDEX IF NOT EXISTS idx_" + tableOnly(playerTable) + "_updated_at ON " + qualified(playerTable) + " (updated_at)");
+            st.execute("CREATE INDEX IF NOT EXISTS idx_" + tableOnly(playerTable) + "_stats_gin ON " + qualified(playerTable) + " USING GIN (stats jsonb_path_ops)");
+            st.execute("CREATE INDEX IF NOT EXISTS idx_" + tableOnly(topTable) + "_updated_at ON " + qualified(topTable) + " (updated_at)");
         } catch (SQLException e) {
             MyLogger.logWarning("Postgres schema/table initialization failed: " + e.getMessage());
         }

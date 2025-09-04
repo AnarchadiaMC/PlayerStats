@@ -194,6 +194,54 @@ database:
   generate-top-interval-minutes: 15
   update-player-on-join: true
   top-list-size: 10  # top size to generate in DB if used
+  # Optional: restrict which statistic keys are persisted to the database.
+  # If empty or omitted, ALL statistic keys will be tracked (auto-detected).
+  #
+  # Key format (UPPERCASE names from Bukkit enums):
+  # - UNTYPED:STATISTIC
+  # - ITEM:STATISTIC:MATERIAL
+  # - BLOCK:STATISTIC:MATERIAL
+  # - ENTITY:STATISTIC:ENTITY_TYPE
+  #
+  # Examples:
+  # - "UNTYPED:LEAVE_GAME"
+  # - "ITEM:USE_ITEM:DIAMOND_SWORD"
+  # - "BLOCK:MINE_BLOCK:STONE"
+  # - "ENTITY:KILL_ENTITY:ZOMBIE"
+  tracked-stats:
+    # Core survival stats
+    - "UNTYPED:DEATHS"
+    - "UNTYPED:MOB_KILLS"
+    - "UNTYPED:PLAYER_KILLS"
+    - "UNTYPED:DAMAGE_DEALT"
+    - "UNTYPED:DAMAGE_TAKEN"
+    - "UNTYPED:PLAY_ONE_MINUTE"
+    - "UNTYPED:LEAVE_GAME"
+    
+    # Movement & exploration
+    - "UNTYPED:WALK_ONE_CM"
+    - "UNTYPED:SPRINT_ONE_CM"
+    - "UNTYPED:FLY_ONE_CM"
+    - "UNTYPED:HORSE_ONE_CM"
+    - "UNTYPED:BOAT_ONE_CM"
+    
+    # Building & crafting essentials
+    - "ITEM:USE_ITEM:DIAMOND_PICKAXE"
+    - "ITEM:USE_ITEM:NETHERITE_PICKAXE"
+    - "ITEM:CRAFT_ITEM:DIAMOND_SWORD"
+    - "ITEM:CRAFT_ITEM:NETHERITE_SWORD"
+    - "BLOCK:MINE_BLOCK:OBSIDIAN"
+    - "BLOCK:MINE_BLOCK:DIAMOND_ORE"
+    - "BLOCK:MINE_BLOCK:ANCIENT_DEBRIS"
+    - "BLOCK:PLACE_BLOCK:TNT"
+    
+    # PvP & combat items
+    - "ITEM:USE_ITEM:TOTEM_OF_UNDYING"
+    - "ITEM:USE_ITEM:GOLDEN_APPLE"
+    - "ITEM:USE_ITEM:ENCHANTED_GOLDEN_APPLE"
+    - "ITEM:USE_ITEM:ENDER_PEARL"
+    - "ITEM:USE_ITEM:BOW"
+
   # Number of worker threads for async DB operations (>=1). Default: half of available processors
   async-threads: 2
   # Minimum interval between writing the same player stat value for the same key (ms)

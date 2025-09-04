@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,6 +40,7 @@ public final class DatabaseManager implements Closable {
 
     // Async execution and simple write-dedup caches
     private ExecutorService executor;
+    private static final int DEFAULT_QUEUE_CAPACITY = 5000;
     private final ConcurrentHashMap<String, PlayerStatCacheEntry> playerCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, TopCacheEntry> topCache = new ConcurrentHashMap<>();
 
@@ -48,15 +50,38 @@ public final class DatabaseManager implements Closable {
 
     public void reloadFromConfig() {
         this.configSnapshot = DatabaseConfig.from(ConfigHandler.getInstance());
-        // Enumerate and cache all trackable stat keys; ignore config tracked-stats
-        this.trackedKeysCache = StatKeyUtil.enumerateAllKeys();
-        dbLog("DatabaseManager tracking " + trackedKeysCache.size() + " statistic keys (config tracked-stats ignored)");
+        // Determine tracked keys: use configured list when provided, else enumerate all
+        List<String> configured = configSnapshot.trackedStats();
+        java.util.ArrayList<String> keys = new java.util.ArrayList<>();
+        boolean usedConfigured = configured != null && !configured.isEmpty();
+        if (usedConfigured) {
+            for (String s : configured) {
+                if (s == null) continue;
+                String k = s.trim();
+                if (k.isEmpty()) continue;
+                if (StatKeyUtil.isValidTrackedFormat(k) && k.length() <= 128) {
+                    if (!keys.contains(k)) keys.add(k);
+                } else {
+                    MyLogger.logWarning("Ignoring invalid tracked-stats entry: '" + k + "'");
+                }
+            }
+            if (keys.isEmpty()) {
+                usedConfigured = false; // fallback
+            }
+        }
+        if (!usedConfigured) {
+            keys.addAll(StatKeyUtil.enumerateAllKeys());
+        }
+        this.trackedKeysCache = java.util.Collections.unmodifiableList(keys);
+        MyLogger.logLowLevelMsg("DatabaseManager tracking " + trackedKeysCache.size() + " statistic keys (source=" + (usedConfigured ? "config" : "auto") + ")");
         dbLog("DB config: type=" + configSnapshot.type() + 
                 ", asyncThreads=" + Math.max(1, configSnapshot.asyncThreads()) +
                 ", playerUpdateMinIntervalMs=" + configSnapshot.playerUpdateMinIntervalMs() +
                 ", topUpsertMinIntervalMs=" + configSnapshot.topUpsertMinIntervalMs() +
                 ", topListSize=" + configSnapshot.topListSize() +
                 ", generateTopOnLoad=" + configSnapshot.generateTopOnLoad() +
+                ", generateTopPeriodically=" + configSnapshot.generateTopPeriodically() +
+                ", generateTopIntervalMinutes=" + configSnapshot.generateTopIntervalMinutes() +
                 ", updatePlayerOnJoin=" + configSnapshot.updatePlayerOnJoin());
         if (!configSnapshot.enabled()) {
             shutdownExecutor();
@@ -74,7 +99,7 @@ public final class DatabaseManager implements Closable {
             provider.init(configSnapshot);
             provider.start();
             // (Re)initialize async executor
-            initExecutor(Math.max(1, configSnapshot.asyncThreads()));
+            initExecutor(Math.max(1, configSnapshot.asyncThreads()), DEFAULT_QUEUE_CAPACITY);
             dbLog("DB provider initialized: " + provider.getClass().getSimpleName());
         } catch (Exception e) {
             MyLogger.logWarning("Failed to initialize DB provider; falling back to No-Op. " + e.getMessage());
@@ -160,6 +185,10 @@ public final class DatabaseManager implements Closable {
 
     // --- internals ---
     private void initExecutor(int threads) {
+        initExecutor(threads, DEFAULT_QUEUE_CAPACITY);
+    }
+
+    private void initExecutor(int threads, int queueCapacity) {
         shutdownExecutor();
         final AtomicInteger idx = new AtomicInteger(1);
         ThreadFactory tf = r -> {
@@ -168,8 +197,17 @@ public final class DatabaseManager implements Closable {
             t.setDaemon(true);
             return t;
         };
-        executor = Executors.newFixedThreadPool(Math.max(1, threads), tf);
-        dbLog("Initialized DB async executor with " + Math.max(1, threads) + " threads");
+        int th = Math.max(1, threads);
+        int qc = Math.max(100, queueCapacity);
+        executor = new ThreadPoolExecutor(
+                th,
+                th,
+                60L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(qc),
+                tf,
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+        dbLog("Initialized DB async executor with " + th + " threads and queueCapacity=" + qc);
     }
 
     private void shutdownExecutor() {
