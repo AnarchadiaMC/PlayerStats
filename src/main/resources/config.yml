@@ -210,37 +210,70 @@ database:
   # - "ENTITY:KILL_ENTITY:ZOMBIE"
   tracked-stats:
     # Core survival stats
-    - "UNTYPED:DEATHS"
-    - "UNTYPED:MOB_KILLS"
-    - "UNTYPED:PLAYER_KILLS"
-    - "UNTYPED:DAMAGE_DEALT"
-    - "UNTYPED:DAMAGE_TAKEN"
-    - "UNTYPED:PLAY_ONE_MINUTE"
-    - "UNTYPED:LEAVE_GAME"
+    - "UNTYPED:DEATHS"                         # Total number of player deaths
+    - "UNTYPED:MOB_KILLS"                      # Total mobs killed by player
+    - "UNTYPED:PLAYER_KILLS"                   # Total other players killed in PvP
+    - "UNTYPED:DAMAGE_DEALT"                   # Total damage points dealt to entities
+    - "UNTYPED:DAMAGE_TAKEN"                   # Total damage points received
+    - "UNTYPED:PLAY_ONE_MINUTE"                # Total playtime in minutes
+    - "UNTYPED:LEAVE_GAME"                     # Number of times disconnected from server
     
     # Movement & exploration
-    - "UNTYPED:WALK_ONE_CM"
-    - "UNTYPED:SPRINT_ONE_CM"
-    - "UNTYPED:FLY_ONE_CM"
-    - "UNTYPED:HORSE_ONE_CM"
-    - "UNTYPED:BOAT_ONE_CM"
+    - "UNTYPED:WALK_ONE_CM"                    # Distance walked in centimeters
+    - "UNTYPED:SPRINT_ONE_CM"                  # Distance sprinted in centimeters
+    - "UNTYPED:FLY_ONE_CM"                     # Distance flown (elytra/creative) in centimeters
+    - "UNTYPED:HORSE_ONE_CM"                   # Distance traveled on horseback in centimeters
+    - "UNTYPED:BOAT_ONE_CM"                    # Distance traveled by boat in centimeters
     
     # Building & crafting essentials
-    - "ITEM:USE_ITEM:DIAMOND_PICKAXE"
-    - "ITEM:USE_ITEM:NETHERITE_PICKAXE"
-    - "ITEM:CRAFT_ITEM:DIAMOND_SWORD"
-    - "ITEM:CRAFT_ITEM:NETHERITE_SWORD"
-    - "BLOCK:MINE_BLOCK:OBSIDIAN"
-    - "BLOCK:MINE_BLOCK:DIAMOND_ORE"
-    - "BLOCK:MINE_BLOCK:ANCIENT_DEBRIS"
-    - "BLOCK:PLACE_BLOCK:TNT"
+    - "ITEM:USE_ITEM:DIAMOND_PICKAXE"          # Times diamond pickaxe used for mining
+    - "ITEM:USE_ITEM:NETHERITE_PICKAXE"        # Times netherite pickaxe used for mining
+    - "ITEM:CRAFT_ITEM:DIAMOND_SWORD"          # Number of diamond swords crafted
+    - "ITEM:CRAFT_ITEM:NETHERITE_SWORD"        # Number of netherite swords crafted
+    - "BLOCK:MINE_BLOCK:OBSIDIAN"              # Obsidian blocks mined (portal/base building)
+    - "BLOCK:MINE_BLOCK:DIAMOND_ORE"           # Diamond ore blocks mined
+    - "BLOCK:MINE_BLOCK:ANCIENT_DEBRIS"        # Ancient debris mined (netherite source)
+    - "BLOCK:PLACE_BLOCK:TNT"                  # TNT blocks placed (griefing/mining)
     
     # PvP & combat items
-    - "ITEM:USE_ITEM:TOTEM_OF_UNDYING"
-    - "ITEM:USE_ITEM:GOLDEN_APPLE"
-    - "ITEM:USE_ITEM:ENCHANTED_GOLDEN_APPLE"
-    - "ITEM:USE_ITEM:ENDER_PEARL"
-    - "ITEM:USE_ITEM:BOW"
+    - "ITEM:USE_ITEM:TOTEM_OF_UNDYING"         # Totems consumed to prevent death
+    - "ITEM:USE_ITEM:GOLDEN_APPLE"             # Regular golden apples consumed
+    - "ITEM:USE_ITEM:ENCHANTED_GOLDEN_APPLE"   # Notch apples consumed (rare healing)
+    - "ITEM:USE_ITEM:ENDER_PEARL"              # Ender pearls thrown for teleportation
+    - "ITEM:USE_ITEM:BOW"                      # Times bow used for ranged combat
+    
+    # Anarchy-specific placement stats
+    - "ITEM:USE_ITEM:END_CRYSTAL"              # End crystals placed (crystal PvP)
+    - "BLOCK:PLACE_BLOCK:WHITE_BANNER"         # Banners placed for base marking/claims
+    - "BLOCK:PLACE_BLOCK:CHEST"                # Storage chests placed
+    - "BLOCK:PLACE_BLOCK:SHULKER_BOX"          # Shulker boxes placed (portable storage)
+    
+    # Additional mining stats
+    - "BLOCK:MINE_BLOCK:ENDER_CHEST"           # Ender chests mined (personal storage)
+    - "BLOCK:MINE_BLOCK:NETHERRACK"            # Netherrack mined (nether highways/tunnels)
+    - "BLOCK:MINE_BLOCK:CRYING_OBSIDIAN"       # Crying obsidian mined (respawn anchors)
+    - "BLOCK:MINE_BLOCK:SHULKER_BOX"           # Shulker boxes broken/looted
+    
+    # New map creation (empty -> filled)
+    - "ITEM:CRAFT_ITEM:FILLED_MAP"             # New maps created from empty maps
+    
+    # Carpet placement stats
+    - "BLOCK:PLACE_BLOCK:WHITE_CARPET"         # White carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:ORANGE_CARPET"        # Orange carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:MAGENTA_CARPET"       # Magenta carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:LIGHT_BLUE_CARPET"    # Light blue carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:YELLOW_CARPET"        # Yellow carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:LIME_CARPET"          # Lime carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:PINK_CARPET"          # Pink carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:GRAY_CARPET"          # Gray carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:LIGHT_GRAY_CARPET"    # Light gray carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:CYAN_CARPET"          # Cyan carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:PURPLE_CARPET"        # Purple carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:BLUE_CARPET"          # Blue carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:BROWN_CARPET"         # Brown carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:GREEN_CARPET"         # Green carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:RED_CARPET"           # Red carpet blocks placed for decoration
+    - "BLOCK:PLACE_BLOCK:BLACK_CARPET"         # Black carpet blocks placed for decoration
 
   # Number of worker threads for async DB operations (>=1). Default: half of available processors
   async-threads: 2
