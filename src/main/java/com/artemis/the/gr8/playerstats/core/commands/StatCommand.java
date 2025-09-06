@@ -19,9 +19,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -247,14 +245,16 @@ public final class StatCommand implements CommandExecutor {
                     subStatName = "player";
                 }
             }
+            
             this.subStatName = subStatName;
-            argsToProcess = removeArg(subStatName);
+            if (subStatName != null) {
+                argsToProcess = removeArg(subStatName);
+            }
         }
 
-        @Contract(pure = true)
-        private @Nullable String tryToFindPlayerName(@NotNull String[] args) {
+        private String tryToFindPlayerName(String[] args) {
             for (String arg : args) {
-                if (offlinePlayerHandler.isIncludedPlayer(arg) || offlinePlayerHandler.isExcludedPlayer(arg)) {
+                if (offlinePlayerHandler.isIncludedPlayer(arg)) {
                     return arg;
                 }
             }

@@ -22,6 +22,8 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 import static net.kyori.adventure.text.Component.*;
 
 /** Creates Components with the desired formatting for the
@@ -35,6 +37,10 @@ import static net.kyori.adventure.text.Component.*;
 public class ComponentFactory {
 
     private static ConfigHandler config;
+    
+    // Component cache to avoid recreating identical components
+    private static final ConcurrentHashMap<String, Component> componentCache = new ConcurrentHashMap<>();
+    private static final int MAX_CACHE_SIZE = 500;
 
     protected TextColor PREFIX;  //gold
     protected TextColor BRACKETS;  //gray
@@ -438,8 +444,29 @@ public class ComponentFactory {
                 .append(text("]"));
     }
 
-    protected TextComponent getComponent(String content, @NotNull TextColor color, @Nullable TextDecoration style) {
-        return getComponentBuilder(content, color, style).build();
+    protected TextComponent getComponent(String content, TextColor color, @Nullable TextDecoration style) {
+        // Create cache key for component caching
+        String cacheKey = content + "|" + color.toString() + "|" + (style != null ? style.toString() : "null");
+        
+        // Check cache first
+        Component cached = componentCache.get(cacheKey);
+        if (cached instanceof TextComponent) {
+            return (TextComponent) cached;
+        }
+        
+        // Create new component if not cached
+        TextComponent.Builder builder = text().content(content).color(color);
+        if (style != null) {
+            builder.decoration(style, true);
+        }
+        TextComponent component = builder.build();
+        
+        // Cache the component if cache isn't full
+        if (componentCache.size() < MAX_CACHE_SIZE) {
+            componentCache.put(cacheKey, component);
+        }
+        
+        return component;
     }
 
     protected TextComponent.Builder getComponentBuilder(@Nullable String content, TextColor color, @Nullable TextDecoration style) {

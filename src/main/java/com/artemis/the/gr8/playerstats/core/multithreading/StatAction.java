@@ -64,16 +64,27 @@ final class StatAction extends RecursiveTask<ConcurrentHashMap<String, Integer>>
             do {
                 String playerName = iterator.next();
                 MyLogger.actionRunning(Thread.currentThread().getName());
-                OfflinePlayer player = offlinePlayerHandler.getIncludedOfflinePlayer(playerName);
-                int statistic = 0;
-                switch (requestSettings.getStatistic().getType()) {
-                    case UNTYPED -> statistic = player.getStatistic(requestSettings.getStatistic());
-                    case ENTITY -> statistic = player.getStatistic(requestSettings.getStatistic(), requestSettings.getEntity());
-                    case BLOCK -> statistic = player.getStatistic(requestSettings.getStatistic(), requestSettings.getBlock());
-                    case ITEM -> statistic = player.getStatistic(requestSettings.getStatistic(), requestSettings.getItem());
-                }
-                if (statistic > 0) {
-                    allStats.put(playerName, statistic);
+                
+                try {
+                    OfflinePlayer player = offlinePlayerHandler.getIncludedOfflinePlayer(playerName);
+                    if (player == null) {
+                        MyLogger.logWarning("Player not found: " + playerName);
+                        continue;
+                    }
+                    
+                    int statistic = 0;
+                    switch (requestSettings.getStatistic().getType()) {
+                        case UNTYPED -> statistic = player.getStatistic(requestSettings.getStatistic());
+                        case ENTITY -> statistic = player.getStatistic(requestSettings.getStatistic(), requestSettings.getEntity());
+                        case BLOCK -> statistic = player.getStatistic(requestSettings.getStatistic(), requestSettings.getBlock());
+                        case ITEM -> statistic = player.getStatistic(requestSettings.getStatistic(), requestSettings.getItem());
+                    }
+                    if (statistic > 0) {
+                        allStats.put(playerName, statistic);
+                    }
+                } catch (Exception e) {
+                    MyLogger.logException(e, "StatAction", "Error getting statistic for player: " + playerName);
+                    // Continue processing other players instead of failing completely
                 }
             } while (iterator.hasNext());
         }

@@ -109,6 +109,37 @@ public final class ShareManager implements Reloadable {
         }
     }
 
+    /**
+     * Enhanced rate limiting with per-player tracking and progressive cooldowns
+     */
+    private final ConcurrentHashMap<String, Integer> shareAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Instant> lastAttemptTime = new ConcurrentHashMap<>();
+
+    public boolean isRateLimited(String playerName) {
+        Instant now = Instant.now();
+        Instant lastAttempt = lastAttemptTime.get(playerName);
+
+        // Reset attempts if more than 5 minutes have passed
+        if (lastAttempt != null && SECONDS.between(lastAttempt, now) > 300) {
+            shareAttempts.remove(playerName);
+            lastAttemptTime.remove(playerName);
+            return false;
+        }
+
+        int attempts = shareAttempts.getOrDefault(playerName, 0);
+        lastAttemptTime.put(playerName, now);
+
+        // Progressive rate limiting: 3 shares per minute, then 1 per 5 minutes
+        if (attempts >= 3) {
+            if (lastAttempt != null && SECONDS.between(lastAttempt, now) < 300) {
+                return true; // Rate limited for 5 minutes after 3 attempts
+            }
+        }
+
+        shareAttempts.put(playerName, attempts + 1);
+        return false;
+    }
+
     public boolean requestAlreadyShared(int shareCode) {
         return sharedResults.contains(shareCode);
     }

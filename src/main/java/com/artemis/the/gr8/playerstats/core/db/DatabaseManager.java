@@ -3,6 +3,7 @@ package com.artemis.the.gr8.playerstats.core.db;
 import com.artemis.the.gr8.playerstats.core.config.ConfigHandler;
 import com.artemis.the.gr8.playerstats.core.utils.Closable;
 import com.artemis.the.gr8.playerstats.core.utils.MyLogger;
+import java.util.Map;
 import com.artemis.the.gr8.playerstats.core.db.mongo.MongoDbProvider;
 import com.artemis.the.gr8.playerstats.core.db.postgres.PostgresProvider;
 
@@ -41,6 +42,8 @@ public final class DatabaseManager implements Closable {
     // Async execution and simple write-dedup caches
     private ExecutorService executor;
     private static final int DEFAULT_QUEUE_CAPACITY = 5000;
+    private static final int MAX_CACHE_SIZE = 10000;
+    private static final long CACHE_TTL_MS = 300000; // 5 minutes
     private final ConcurrentHashMap<String, PlayerStatCacheEntry> playerCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, TopCacheEntry> topCache = new ConcurrentHashMap<>();
 
@@ -114,26 +117,28 @@ public final class DatabaseManager implements Closable {
         return trackedKeysCache;
     }
 
-    public void updatePlayerStat(UUID uuid, String playerName, String statKey, int value) {
-        if (executor == null) {
-            // Fallback (should not happen when DB is enabled)
-            provider.updatePlayerStat(uuid, playerName, statKey, value);
-            return;
-        }
+    public void updatePlayerStat(UUID playerUUID, String playerName, String statKey, int value) {
+        if (!configSnapshot.enabled()) return;
+        
+        cleanupExpiredCacheEntries();
+        
+        String cacheKey = playerUUID + ":" + statKey;
+        PlayerStatCacheEntry cached = playerCache.get(cacheKey);
         long now = System.currentTimeMillis();
-        String key = uuid + "|" + statKey;
-        PlayerStatCacheEntry prev = playerCache.get(key);
-        long minInterval = Math.max(0L, configSnapshot.playerUpdateMinIntervalMs());
-        if (prev != null && prev.value == value && (now - prev.lastWriteAt) < minInterval) {
-            dbLog("DB skip playerStat (unchanged within interval): " + key);
-            return;
+        if (cached != null && cached.value == value && (now - cached.lastWriteAt) < configSnapshot.playerUpdateMinIntervalMs()) {
+            return; // Skip duplicate/recent write
         }
-        dbLog("Queue playerStat: " + key + " value=" + value);
-        playerCache.put(key, new PlayerStatCacheEntry(value, now));
-        executor.submit(() -> {
+        
+        // Enforce cache size limit
+        if (playerCache.size() >= MAX_CACHE_SIZE) {
+            evictOldestCacheEntries();
+        }
+        
+        playerCache.put(cacheKey, new PlayerStatCacheEntry(value, now));
+        executor.execute(() -> {
             try {
-                provider.updatePlayerStat(uuid, playerName, statKey, value);
-                dbLog("Wrote playerStat: " + key + " value=" + value);
+                provider.updatePlayerStat(playerUUID, playerName, statKey, value);
+                dbLog("Updated player stat: " + playerName + " " + statKey + "=" + value);
             } catch (Exception e) {
                 MyLogger.logWarning("Async updatePlayerStat failed: " + e.getMessage());
             }
@@ -171,7 +176,9 @@ public final class DatabaseManager implements Closable {
     public void close() {
         try {
             if (provider != null) provider.close();
-        } catch (Exception ignored) { }
+        } catch (Exception e) {
+            MyLogger.logWarning("Failed to close database provider: " + e.getMessage());
+        }
         shutdownExecutor();
     }
 
@@ -215,9 +222,15 @@ public final class DatabaseManager implements Closable {
             try {
                 executor.shutdown();
                 executor.awaitTermination(2, TimeUnit.SECONDS);
-            } catch (InterruptedException ignored) {
+            } catch (InterruptedException e) {
+                MyLogger.logWarning("Database executor shutdown interrupted: " + e.getMessage());
+                Thread.currentThread().interrupt();
             } finally {
-                try { executor.shutdownNow(); } catch (Exception ignored) {}
+                try { 
+                    executor.shutdownNow(); 
+                } catch (Exception e) {
+                    MyLogger.logWarning("Failed to force shutdown database executor: " + e.getMessage());
+                }
                 executor = null;
             }
         }
@@ -226,6 +239,33 @@ public final class DatabaseManager implements Closable {
     private void dbLog(String msg) {
         if (configSnapshot != null && configSnapshot.verboseLogging()) {
             MyLogger.logLowLevelMsg(msg);
+        }
+    }
+
+    private void cleanupExpiredCacheEntries() {
+        long now = System.currentTimeMillis();
+        playerCache.entrySet().removeIf(entry -> (now - entry.getValue().lastWriteAt) > CACHE_TTL_MS);
+        topCache.entrySet().removeIf(entry -> (now - entry.getValue().lastWriteAt) > CACHE_TTL_MS);
+    }
+
+    private void evictOldestCacheEntries() {
+        if (playerCache.size() >= MAX_CACHE_SIZE) {
+            // Remove 25% of oldest entries
+            int toRemove = MAX_CACHE_SIZE / 4;
+            playerCache.entrySet().stream()
+                .sorted((e1, e2) -> Long.compare(e1.getValue().lastWriteAt, e2.getValue().lastWriteAt))
+                .limit(toRemove)
+                .map(Map.Entry::getKey)
+                .forEach(playerCache::remove);
+        }
+        
+        if (topCache.size() >= MAX_CACHE_SIZE) {
+            int toRemove = MAX_CACHE_SIZE / 4;
+            topCache.entrySet().stream()
+                .sorted((e1, e2) -> Long.compare(e1.getValue().lastWriteAt, e2.getValue().lastWriteAt))
+                .limit(toRemove)
+                .map(Map.Entry::getKey)
+                .forEach(topCache::remove);
         }
     }
 

@@ -21,7 +21,26 @@ public final class ShareCommand implements CommandExecutor {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, @NotNull String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+        // Input validation: limit number of arguments
+        if (args.length > 5) {
+            sender.sendMessage("§cToo many arguments provided.");
+            return true;
+        }
+        
+        if (args.length == 0) {
+            outputManager.sendFeedbackMsg(sender, StandardMessage.MISSING_STAT_NAME);
+            return true;
+        }
+        
+        // Input validation: check argument lengths
+        for (String arg : args) {
+            if (arg != null && arg.length() > 50) {
+                sender.sendMessage("§cArgument too long: " + arg.substring(0, 20) + "...");
+                return true;
+            }
+        }
+
         if (args.length == 1 && shareManager.isEnabled()) {
             int shareCode;
             try {
@@ -35,6 +54,9 @@ public final class ShareCommand implements CommandExecutor {
             }
             else if (shareManager.isOnCoolDown(sender.getName())) {
                 outputManager.sendFeedbackMsg(sender, StandardMessage.STILL_ON_SHARE_COOLDOWN);
+            }
+            else if (shareManager.isRateLimited(sender.getName())) {
+                sender.sendMessage("§cYou are sharing too frequently. Please wait before sharing again.");
             }
             else {
                 StoredResult result = shareManager.getStatResult(sender.getName(), shareCode);

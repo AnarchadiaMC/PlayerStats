@@ -1,24 +1,25 @@
 package com.artemis.the.gr8.playerstats.core;
 
 import com.artemis.the.gr8.playerstats.api.PlayerStats;
+import com.artemis.the.gr8.playerstats.api.RequestGenerator;
 import com.artemis.the.gr8.playerstats.api.StatNumberFormatter;
 import com.artemis.the.gr8.playerstats.api.StatTextFormatter;
 import com.artemis.the.gr8.playerstats.api.StatManager;
 import com.artemis.the.gr8.playerstats.core.commands.*;
 import com.artemis.the.gr8.playerstats.core.msg.msgutils.NumberFormatter;
-import com.artemis.the.gr8.playerstats.core.multithreading.ThreadManager;
-import com.artemis.the.gr8.playerstats.core.msg.OutputManager;
 import com.artemis.the.gr8.playerstats.core.config.ConfigHandler;
+import com.artemis.the.gr8.playerstats.core.db.DatabaseManager;
 import com.artemis.the.gr8.playerstats.core.listeners.JoinListener;
+import com.artemis.the.gr8.playerstats.core.multithreading.ThreadManager;
+import com.artemis.the.gr8.playerstats.core.utils.MyLogger;
 import com.artemis.the.gr8.playerstats.core.msg.msgutils.LanguageKeyHandler;
 import com.artemis.the.gr8.playerstats.core.sharing.ShareManager;
 import com.artemis.the.gr8.playerstats.core.statistic.StatRequestManager;
 import com.artemis.the.gr8.playerstats.core.utils.Closable;
 import com.artemis.the.gr8.playerstats.core.utils.OfflinePlayerHandler;
 import com.artemis.the.gr8.playerstats.core.utils.Reloadable;
-import com.artemis.the.gr8.playerstats.core.db.DatabaseManager;
 import com.artemis.the.gr8.playerstats.core.db.StatKeyUtil;
-import com.artemis.the.gr8.playerstats.api.RequestGenerator;
+import com.artemis.the.gr8.playerstats.core.msg.OutputManager;
 import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 
@@ -83,18 +84,46 @@ public final class Main extends JavaPlugin implements PlayerStats {
                         com.artemis.the.gr8.playerstats.api.StatRequest<LinkedHashMap<String, Integer>> req;
                         switch (type) {
                             case "UNTYPED" -> req = gen.untyped(stat);
-                            case "BLOCK" -> req = gen.blockOrItemType(stat, Material.valueOf(parts[2]));
-                            case "ITEM" -> req = gen.blockOrItemType(stat, Material.valueOf(parts[2]));
-                            case "ENTITY" -> req = gen.entityType(stat, EntityType.valueOf(parts[2]));
+                            case "BLOCK" -> {
+                                try {
+                                    Material material = Material.valueOf(parts[2]);
+                                    req = gen.blockOrItemType(stat, material);
+                                } catch (IllegalArgumentException e) {
+                                    MyLogger.logWarning("Invalid material in stat key '" + key + "': " + parts[2]);
+                                    continue;
+                                }
+                            }
+                            case "ITEM" -> {
+                                try {
+                                    Material material = Material.valueOf(parts[2]);
+                                    req = gen.blockOrItemType(stat, material);
+                                } catch (IllegalArgumentException e) {
+                                    MyLogger.logWarning("Invalid material in stat key '" + key + "': " + parts[2]);
+                                    continue;
+                                }
+                            }
+                            case "ENTITY" -> {
+                                try {
+                                    EntityType entityType = EntityType.valueOf(parts[2]);
+                                    req = gen.entityType(stat, entityType);
+                                } catch (IllegalArgumentException e) {
+                                    MyLogger.logWarning("Invalid entity type in stat key '" + key + "': " + parts[2]);
+                                    continue;
+                                }
+                            }
                             default -> { continue; }
                         }
                         LinkedHashMap<String, Integer> top = statManager.executeTopRequest(req).value();
                         dbm.upsertTopList(key, top);
-                    } catch (IllegalArgumentException ignored) {
-                    } catch (Exception ignored) {
+                    } catch (IllegalArgumentException e) {
+                        MyLogger.logWarning("Invalid enum value in stat key '" + key + "': " + e.getMessage());
+                    } catch (Exception e) {
+                        MyLogger.logWarning("Failed to generate top list for key '" + key + "': " + e.getMessage());
                     }
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception e) {
+                MyLogger.logWarning("Failed to generate top lists: " + e.getMessage());
+            }
         });
     }
 
@@ -109,7 +138,9 @@ public final class Main extends JavaPlugin implements PlayerStats {
                     if (dbm.config().enabled()) {
                         generateTopListsAsync(dbm);
                     }
-                } catch (Exception ignored) { }
+                } catch (Exception e) {
+                    MyLogger.logWarning("Failed to generate periodic top lists: " + e.getMessage());
+                }
             }
         }.runTaskTimerAsynchronously(this, periodTicks, periodTicks);
     }
