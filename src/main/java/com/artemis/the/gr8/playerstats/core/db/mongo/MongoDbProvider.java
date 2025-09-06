@@ -49,7 +49,9 @@ public final class MongoDbProvider implements DbProvider {
             if (remote && !tlsOn) {
                 MyLogger.logWarning("MongoDB URI appears remote and TLS/SSL is disabled. Consider enabling TLS in production.");
             }
-        } catch (Exception ignored) { }
+        } catch (Exception e) {
+            MyLogger.logWarning("Failed to parse MongoDB URI for TLS detection: " + e.getMessage());
+        }
         MongoClientSettings settings = MongoClientSettings.builder()
                 .applyConnectionString(cs)
                 .build();
@@ -121,7 +123,11 @@ public final class MongoDbProvider implements DbProvider {
     @Override
     public void close() {
         if (client != null) {
-            try { client.close(); } catch (Exception ignored) {}
+            try { 
+                client.close(); 
+            } catch (Exception e) {
+                MyLogger.logWarning("Failed to close MongoDB client: " + e.getMessage());
+            }
             client = null;
         }
     }

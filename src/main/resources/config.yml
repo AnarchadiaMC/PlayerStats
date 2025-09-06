@@ -299,8 +299,9 @@ database:
     port: 5432
     database: "playerstats"
     user: "postgres"
-    # Use a strong password. Consider using environment variables or a secrets manager.
-    # Example for environment variable expansion (if supported by your runtime): ${PSQL_PASSWORD}
+    # SECURITY: Use a strong password. For production, use environment variables or secrets manager.
+    # Example: Set environment variable PSQL_PASSWORD and reference it here
+    # DO NOT store production passwords in plaintext in this file
     password: ""
     schema: "public"
     # For remote databases, enabling SSL is strongly recommended
