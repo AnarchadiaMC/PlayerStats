@@ -135,6 +135,11 @@ public final class DatabaseManager implements Closable {
         }
         
         playerCache.put(cacheKey, new PlayerStatCacheEntry(value, now));
+        if (executor == null) {
+            provider.updatePlayerStat(playerUUID, playerName, statKey, value);
+            dbLog("Updated player stat (sync fallback): " + playerName + " " + statKey + "=" + value);
+            return;
+        }
         executor.execute(() -> {
             try {
                 provider.updatePlayerStat(playerUUID, playerName, statKey, value);

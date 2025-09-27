@@ -67,7 +67,8 @@ public final class ThreadManager {
     }
 
     public static @NotNull PlayerLoadAction getPlayerLoadAction(OfflinePlayer[] playersToLoad, ConcurrentHashMap<String, UUID> mapToFill) {
-        PlayerLoadAction task = new PlayerLoadAction(playersToLoad, mapToFill);
+        long minLastPlayed = ConfigHandler.getInstance().getSinceAbsoluteTimestamp();
+        PlayerLoadAction task = new PlayerLoadAction(playersToLoad, mapToFill, minLastPlayed);
         MyLogger.actionCreated(playersToLoad != null ? playersToLoad.length : 0);
         return task;
     }

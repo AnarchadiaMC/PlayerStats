@@ -33,6 +33,10 @@ exclude-banned-players: false
 # Leave this on 0 to include all players
 number-of-days-since-last-joined: 0
 
+# Optional: Absolute date (YYYY-MM-DD) to include only players who have joined since then
+# Overrides the days limit if set. Leave empty to use relative days.
+since-absolute-date: ""
+
 # Players that are excluded through the previous settings or the excluded-players-file will not
 # show up in top or server statistics. This setting controls whether you can still see their stats with
 # the /stat player command
@@ -208,6 +212,10 @@ database:
   # - "ITEM:USE_ITEM:DIAMOND_SWORD"
   # - "BLOCK:MINE_BLOCK:STONE"
   # - "ENTITY:KILL_ENTITY:ZOMBIE"
+
+  # Optional: Absolute date (YYYY-MM-DD) to include only players who have joined since then
+  # Overrides the days limit if set. Leave empty to use relative days.
+  since-absolute-date: ""
   tracked-stats:
     # Core survival stats
     - "UNTYPED:DEATHS"                         # Total number of player deaths

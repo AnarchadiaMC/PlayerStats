@@ -2,6 +2,7 @@ package com.artemis.the.gr8.playerstats.core.utils;
 
 import com.artemis.the.gr8.playerstats.core.Main;
 import com.artemis.the.gr8.playerstats.core.config.ConfigHandler;
+import com.artemis.the.gr8.playerstats.core.multithreading.PlayerLoadAction;
 import com.artemis.the.gr8.playerstats.core.multithreading.ThreadManager;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -174,7 +175,15 @@ public final class OfflinePlayerHandler extends YamlFileHandler {
         int size = includedPlayerUUIDs != null ? includedPlayerUUIDs.size() : 16;
         includedPlayerUUIDs = new ConcurrentHashMap<>(size);
 
-        ForkJoinPool.commonPool().invoke(ThreadManager.getPlayerLoadAction(offlinePlayers, includedPlayerUUIDs));
+        long minLastPlayed = config.getSinceAbsoluteTimestamp();
+        if (minLastPlayed > 0) {
+            // Use absolute timestamp
+            ForkJoinPool.commonPool().invoke(new PlayerLoadAction(offlinePlayers, includedPlayerUUIDs, minLastPlayed));
+        } else {
+            // Use relative days
+            int daysLimit = config.getLastPlayedLimit();
+            ForkJoinPool.commonPool().invoke(ThreadManager.getPlayerLoadAction(offlinePlayers, includedPlayerUUIDs));
+        }
 
         MyLogger.actionFinished();
         MyLogger.logLowLevelTask(("Loaded " + includedPlayerUUIDs.size() + " offline players"), startTime);

@@ -8,6 +8,8 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.postgresql.util.PGobject;
 
+import java.lang.Class;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -53,6 +55,13 @@ public final class PostgresProvider implements DbProvider {
         if (config.verboseLogging()) {
             hc.setLeakDetectionThreshold(20_000L);
             hc.setValidationTimeout(5_000L);
+        }
+
+        // Explicitly load the shaded PostgreSQL driver
+        try {
+            Class.forName("com.artemis.the.gr8.playerstats.lib.pg.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Shaded PostgreSQL driver not found. Ensure the JAR includes the relocated dependency.", e);
         }
 
         validateSecurity(config);

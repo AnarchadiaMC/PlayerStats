@@ -446,7 +446,7 @@ public class ComponentFactory {
 
     protected TextComponent getComponent(String content, TextColor color, @Nullable TextDecoration style) {
         // Create cache key for component caching
-        String cacheKey = content + "|" + color.toString() + "|" + (style != null ? style.toString() : "null");
+        String cacheKey = (content != null ? content : "") + "|" + color.toString() + "|" + (style != null ? style.toString() : "null");
         
         // Check cache first
         Component cached = componentCache.get(cacheKey);
@@ -455,7 +455,10 @@ public class ComponentFactory {
         }
         
         // Create new component if not cached
-        TextComponent.Builder builder = text().content(content).color(color);
+        TextComponent.Builder builder = text().color(color);
+        if (content != null) {
+            builder.content(content);
+        }
         if (style != null) {
             builder.decoration(style, true);
         }

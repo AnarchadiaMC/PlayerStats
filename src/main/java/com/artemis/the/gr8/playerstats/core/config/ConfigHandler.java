@@ -6,6 +6,10 @@ import com.artemis.the.gr8.playerstats.core.utils.YamlFileHandler;
 import com.artemis.the.gr8.playerstats.core.utils.MyLogger;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
@@ -131,6 +135,25 @@ public final class ConfigHandler extends YamlFileHandler {
      */
     public int getLastPlayedLimit() {
         return config.getInt("number-of-days-since-last-joined", 0);
+    }
+
+    /**
+     * Optional absolute date (YYYY-MM-DD) to filter players who joined since then.
+     * Returns timestamp in ms, or 0 if not set (use relative days).
+     * @return long timestamp or 0
+     */
+    public long getSinceAbsoluteTimestamp() {
+        String dateStr = config.getString("since-absolute-date", "");
+        if (dateStr.isBlank()) {
+            return 0L;
+        }
+        try {
+            LocalDate date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+            return date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        } catch (Exception e) {
+            MyLogger.logWarning("Invalid since-absolute-date format '" + dateStr + "': " + e.getMessage() + ". Using no absolute filter.");
+            return 0L;
+        }
     }
 
     /**

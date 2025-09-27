@@ -1,5 +1,7 @@
 package com.artemis.the.gr8.playerstats.core.statistic;
 
+import com.artemis.the.gr8.playerstats.core.Main;
+
 import com.artemis.the.gr8.playerstats.api.StatRequest;
 import com.artemis.the.gr8.playerstats.api.StatResult;
 import com.artemis.the.gr8.playerstats.core.config.ConfigHandler;
@@ -125,11 +127,18 @@ final class BukkitProcessor extends RequestProcessor {
 
         try {
             allStats = commonPool.invoke(ThreadManager.getStatAction(requestSettings));
-        } catch (ConcurrentModificationException e) {
-            MyLogger.logWarning("The requestSettings could not be executed due to a ConcurrentModificationException. " +
-                    "This likely happened because Bukkit hasn't fully initialized all player-data yet. " +
+        } catch (Exception e) {
+            if (Main.isShuttingDown()) {
+                return new ConcurrentHashMap<>();
+            }
+            MyLogger.logWarning("The requestSettings could not be executed due to an exception: " + e.getMessage() +
+                    ". This likely happened because Bukkit hasn't fully initialized all player-data yet, or during shutdown. " +
                     "Try again and it should be fine!");
-            throw new ConcurrentModificationException(e.toString());
+            if (e instanceof ConcurrentModificationException) {
+                throw new ConcurrentModificationException(e.toString());
+            } else {
+                throw e;
+            }
         }
 
         MyLogger.actionFinished();

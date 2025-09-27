@@ -1,5 +1,7 @@
 package com.artemis.the.gr8.playerstats.core.multithreading;
 
+import com.artemis.the.gr8.playerstats.core.Main;
+
 import com.artemis.the.gr8.playerstats.api.StatRequest;
 import com.artemis.the.gr8.playerstats.core.utils.OfflinePlayerHandler;
 import com.artemis.the.gr8.playerstats.core.utils.MyLogger;
@@ -42,6 +44,9 @@ final class StatAction extends RecursiveTask<ConcurrentHashMap<String, Integer>>
 
     @Override
     protected ConcurrentHashMap<String, Integer> compute() {
+        if (Main.isShuttingDown()) {
+            return new ConcurrentHashMap<>();
+        }
         if (playerNames.size() < threshold) {
             return getStatsDirectly();
         }
@@ -57,6 +62,9 @@ final class StatAction extends RecursiveTask<ConcurrentHashMap<String, Integer>>
     }
 
     private ConcurrentHashMap<String, Integer> getStatsDirectly() {
+        if (Main.isShuttingDown()) {
+            return allStats;
+        }
         OfflinePlayerHandler offlinePlayerHandler = OfflinePlayerHandler.getInstance();
 
         Iterator<String> iterator = playerNames.iterator();

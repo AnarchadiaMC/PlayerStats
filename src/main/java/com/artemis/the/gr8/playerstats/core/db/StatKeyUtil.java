@@ -29,9 +29,25 @@ public final class StatKeyUtil {
         String[] parts = s.split(":");
         if (parts.length < 2 || parts.length > 3) return false;
         String type = parts[0].toUpperCase(Locale.ROOT);
+        if (parts.length != (type.equals("UNTYPED") ? 2 : 3)) return false;
+        if (!switch (type) {
+            case "UNTYPED", "BLOCK", "ITEM", "ENTITY" -> true;
+            default -> false;
+        }) return false;
+
+        String statName = parts[1].toUpperCase(Locale.ROOT);
+        Statistic stat;
+        try {
+            stat = Statistic.valueOf(statName);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+
         return switch (type) {
-            case "UNTYPED" -> parts.length == 2;
-            case "BLOCK", "ITEM", "ENTITY" -> parts.length == 3;
+            case "UNTYPED" -> stat.getType() == Statistic.Type.UNTYPED;
+            case "BLOCK" -> stat.getType() == Statistic.Type.BLOCK;
+            case "ITEM" -> stat.getType() == Statistic.Type.ITEM;
+            case "ENTITY" -> stat.getType() == Statistic.Type.ENTITY;
             default -> false;
         };
     }

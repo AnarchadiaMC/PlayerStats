@@ -54,6 +54,12 @@ public final class Main extends JavaPlugin implements PlayerStats {
     private static List<Reloadable> reloadables;
     private static List<Closable> closables;
 
+    private static boolean shuttingDown = false;
+
+    public static boolean isShuttingDown() {
+        return shuttingDown;
+    }
+
     @Override
     public void onEnable() {
         reloadables = new ArrayList<>();
@@ -118,7 +124,9 @@ public final class Main extends JavaPlugin implements PlayerStats {
                     } catch (IllegalArgumentException e) {
                         MyLogger.logWarning("Invalid enum value in stat key '" + key + "': " + e.getMessage());
                     } catch (Exception e) {
-                        MyLogger.logWarning("Failed to generate top list for key '" + key + "': " + e.getMessage());
+                        if (!isShuttingDown()) {
+                            MyLogger.logWarning("Failed to generate top list for key '" + key + "': " + e.getMessage());
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -147,6 +155,7 @@ public final class Main extends JavaPlugin implements PlayerStats {
 
     @Override
     public void onDisable() {
+        shuttingDown = true;
         closables.forEach(Closable::close);
         this.getLogger().info("Disabled PlayerStats!");
     }
