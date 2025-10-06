@@ -1,15 +1,12 @@
 package com.artemis.the.gr8.playerstats.core.multithreading;
 
-import com.artemis.the.gr8.playerstats.core.config.ConfigHandler;
 import com.artemis.the.gr8.playerstats.core.utils.MyLogger;
 import com.artemis.the.gr8.playerstats.core.utils.OfflinePlayerHandler;
-import com.artemis.the.gr8.playerstats.core.utils.UnixTimeHandler;
 import org.bukkit.OfflinePlayer;
 
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RecursiveAction;
-
 /**
  * The action that is executed when a reload-command is triggered.
  */

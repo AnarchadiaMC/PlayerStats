@@ -171,7 +171,6 @@ public final class OfflinePlayerHandler extends YamlFileHandler {
         } else {
             offlinePlayers = Bukkit.getOfflinePlayers();
         }
-
         int size = includedPlayerUUIDs != null ? includedPlayerUUIDs.size() : 16;
         includedPlayerUUIDs = new ConcurrentHashMap<>(size);
 
@@ -180,15 +179,13 @@ public final class OfflinePlayerHandler extends YamlFileHandler {
             // Use absolute timestamp
             ForkJoinPool.commonPool().invoke(new PlayerLoadAction(offlinePlayers, includedPlayerUUIDs, minLastPlayed));
         } else {
-            // Use relative days
-            int daysLimit = config.getLastPlayedLimit();
+            // Use relative days - ThreadManager handles the calculation internally
             ForkJoinPool.commonPool().invoke(ThreadManager.getPlayerLoadAction(offlinePlayers, includedPlayerUUIDs));
         }
 
         MyLogger.actionFinished();
         MyLogger.logLowLevelTask(("Loaded " + includedPlayerUUIDs.size() + " offline players"), startTime);
     }
-
     private void loadExcludedPlayerNames() {
         long time = System.currentTimeMillis();
 

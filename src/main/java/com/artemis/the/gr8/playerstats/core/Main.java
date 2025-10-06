@@ -88,60 +88,80 @@ public final class Main extends JavaPlugin implements PlayerStats {
     private void generateTopListsAsync(DatabaseManager dbm) {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             try {
-                for (String key : dbm.trackedStatKeys()) {
-                    if (!StatKeyUtil.isValidTrackedFormat(key)) continue;
-                    String[] parts = key.split(":");
-                    String type = parts[0];
-                    String statName = parts[1];
+                long startTime = System.currentTimeMillis();
+                List<String> keys = new ArrayList<>(dbm.trackedStatKeys());
+                
+                // Process stats in parallel using ForkJoinPool
+                List<String> validKeys = keys.stream()
+                    .filter(StatKeyUtil::isValidTrackedFormat)
+                    .toList();
+                
+                MyLogger.logMediumLevelMsg("Generating top lists for " + validKeys.size() + " stats using parallel processing...");
+                
+                // Use parallel stream to process multiple stats concurrently
+                validKeys.parallelStream().forEach(key -> {
                     try {
-                        Statistic stat = Statistic.valueOf(statName);
-                        RequestGenerator<LinkedHashMap<String, Integer>> gen = statManager.createTopStatRequest(dbm.config().topListSize());
-                        com.artemis.the.gr8.playerstats.api.StatRequest<LinkedHashMap<String, Integer>> req;
-                        switch (type) {
-                            case "UNTYPED" -> req = gen.untyped(stat);
-                            case "BLOCK" -> {
-                                try {
-                                    Material material = Material.valueOf(parts[2]);
-                                    req = gen.blockOrItemType(stat, material);
-                                } catch (IllegalArgumentException e) {
-                                    MyLogger.logWarning("Invalid material in stat key '" + key + "': " + parts[2]);
-                                    continue;
-                                }
-                            }
-                            case "ITEM" -> {
-                                try {
-                                    Material material = Material.valueOf(parts[2]);
-                                    req = gen.blockOrItemType(stat, material);
-                                } catch (IllegalArgumentException e) {
-                                    MyLogger.logWarning("Invalid material in stat key '" + key + "': " + parts[2]);
-                                    continue;
-                                }
-                            }
-                            case "ENTITY" -> {
-                                try {
-                                    EntityType entityType = EntityType.valueOf(parts[2]);
-                                    req = gen.entityType(stat, entityType);
-                                } catch (IllegalArgumentException e) {
-                                    MyLogger.logWarning("Invalid entity type in stat key '" + key + "': " + parts[2]);
-                                    continue;
-                                }
-                            }
-                            default -> { continue; }
-                        }
-                        LinkedHashMap<String, Integer> top = statManager.executeTopRequest(req).value();
-                        dbm.upsertTopList(key, top);
-                    } catch (IllegalArgumentException e) {
-                        MyLogger.logWarning("Invalid enum value in stat key '" + key + "': " + e.getMessage());
+                        processTopListForKey(key, dbm);
                     } catch (Exception e) {
                         if (!isShuttingDown()) {
                             MyLogger.logWarning("Failed to generate top list for key '" + key + "': " + e.getMessage());
                         }
                     }
-                }
+                });
+                
+                MyLogger.logMediumLevelTask("Top list generation completed", startTime);
             } catch (Exception e) {
                 MyLogger.logWarning("Failed to generate top lists: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * Process a single stat key to generate and store its top list.
+     * This method is designed to be called concurrently from multiple threads.
+     */
+    private void processTopListForKey(String key, DatabaseManager dbm) {
+        String[] parts = key.split(":");
+        if (parts.length < 2) return;
+        
+        String type = parts[0];
+        String statName = parts[1];
+        
+        try {
+            Statistic stat = Statistic.valueOf(statName);
+            RequestGenerator<LinkedHashMap<String, Integer>> gen = statManager.createTopStatRequest(dbm.config().topListSize());
+            com.artemis.the.gr8.playerstats.api.StatRequest<LinkedHashMap<String, Integer>> req;
+            
+            switch (type) {
+                case "UNTYPED" -> req = gen.untyped(stat);
+                case "BLOCK", "ITEM" -> {
+                    if (parts.length < 3) return;
+                    try {
+                        Material material = Material.valueOf(parts[2]);
+                        req = gen.blockOrItemType(stat, material);
+                    } catch (IllegalArgumentException e) {
+                        MyLogger.logWarning("Invalid material in stat key '" + key + "': " + parts[2]);
+                        return;
+                    }
+                }
+                case "ENTITY" -> {
+                    if (parts.length < 3) return;
+                    try {
+                        EntityType entityType = EntityType.valueOf(parts[2]);
+                        req = gen.entityType(stat, entityType);
+                    } catch (IllegalArgumentException e) {
+                        MyLogger.logWarning("Invalid entity type in stat key '" + key + "': " + parts[2]);
+                        return;
+                    }
+                }
+                default -> { return; }
+            }
+            
+            LinkedHashMap<String, Integer> top = statManager.executeTopRequest(req).value();
+            dbm.upsertTopList(key, top);
+        } catch (IllegalArgumentException e) {
+            MyLogger.logWarning("Invalid enum value in stat key '" + key + "': " + e.getMessage());
+        }
     }
 
     private void schedulePeriodicTopLists(DatabaseManager dbm) {

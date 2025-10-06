@@ -57,7 +57,7 @@ public final class DatabaseManager implements Closable {
         List<String> configured = configSnapshot.trackedStats();
         java.util.ArrayList<String> keys = new java.util.ArrayList<>();
         boolean usedConfigured = configured != null && !configured.isEmpty();
-        if (usedConfigured) {
+        if (usedConfigured && configured != null) {  // Explicit null check for IDE warning
             for (String s : configured) {
                 if (s == null) continue;
                 String k = s.trim();
@@ -215,10 +215,6 @@ public final class DatabaseManager implements Closable {
     }
 
     // --- internals ---
-    private void initExecutor(int threads) {
-        initExecutor(threads, DEFAULT_QUEUE_CAPACITY);
-    }
-
     private void initExecutor(int threads, int queueCapacity) {
         shutdownExecutor();
         final AtomicInteger idx = new AtomicInteger(1);

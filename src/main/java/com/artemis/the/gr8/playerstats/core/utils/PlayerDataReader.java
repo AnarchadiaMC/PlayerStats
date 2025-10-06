@@ -1,8 +1,5 @@
 package com.artemis.the.gr8.playerstats.core.utils;
 
-import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
-
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
