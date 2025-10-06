@@ -13,6 +13,17 @@ public interface DbProvider extends AutoCloseable {
 
     void upsertTopList(String statKey, LinkedHashMap<String, Integer> top, int topSize);
 
+    /**
+     * Update player experience data in the database.
+     *
+     * @param uuid Player's UUID
+     * @param playerName Player's name
+     * @param level Experience level
+     * @param totalExperience Total experience points
+     * @param expProgress Progress toward next level (0.0 to 1.0)
+     */
+    void updatePlayerExperience(UUID uuid, String playerName, int level, int totalExperience, float expProgress);
+
     @Override
     void close();
 }

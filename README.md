@@ -284,6 +284,100 @@ Example: `ENTITY:KILL_ENTITY:ZOMBIE` (zombies killed)
 
 For the complete and up-to-date list, consult the Bukkit API documentation, as new statistics may be added in future Minecraft versions. The plugin validates keys at runtime and ignores invalid ones.
 
+## Experience Level Tracking
+
+PlayerStats now tracks player experience levels alongside traditional Minecraft statistics. This feature provides:
+
+- **Real-time experience tracking** when players join the server
+- **Historical data population** from offline player files on plugin startup
+- **Multi-threaded NBT reading** for fast bulk imports of hundreds/thousands of players
+- **Database persistence** for leaderboards and external analytics
+
+### How Experience Tracking Works
+
+Unlike Minecraft statistics (which only increase), experience levels can fluctuate due to deaths, enchanting, and anvil usage. PlayerStats captures this data in two ways:
+
+#### 1. On-Join Updates
+When a player joins the server, their current experience data is automatically captured and stored:
+- **Experience Level** (`player.getLevel()`)
+- **Total Experience Points** (`player.getTotalExperience()`)
+- **Progress to Next Level** (`player.getExp()` - float from 0.0 to 1.0)
+
+These updates happen asynchronously to avoid blocking the server thread.
+
+#### 2. Startup Population from Player Files
+On plugin startup (when database is enabled), PlayerStats performs a one-time bulk import:
+
+1. **Locates player data files** in `world/playerdata/*.dat` (standard Minecraft NBT format)
+2. **Reads experience data in parallel** using Java's `ForkJoinPool` for multi-threaded processing
+3. **Extracts NBT tags**: `XpLevel`, `XpTotal`, and `XpP` (experience progress)
+4. **Writes to database asynchronously** for all offline players
+
+This process typically completes in seconds even for servers with thousands of players. Progress is logged:
+```
+[PlayerStats] Starting experience data population from player files...
+[PlayerStats] Read experience data from 1523 player files
+[PlayerStats] Experience population complete: wrote 1523 entries in 2847ms
+```
+
+### Experience Data Storage
+
+Experience data is stored separately from statistics in the database schema:
+
+**PostgreSQL:**
+- `exp_level` (INT): Current experience level
+- `exp_total` (INT): Total experience points accumulated
+- `exp_progress` (REAL): Progress toward next level (0.0-1.0)
+- Indexed on `exp_level DESC` for fast "highest level" queries
+
+**MongoDB:**
+- Nested `experience` document with fields:
+  - `level`: Experience level
+  - `totalExperience`: Total XP points
+  - `expProgress`: Progress to next level (0.0-1.0)
+
+### Use Cases
+
+- **Leaderboards**: Query top players by experience level
+- **Server Analytics**: Track total server XP accumulation
+- **Custom Plugins**: Access experience data via database
+- **Web Dashboards**: Display player progression externally
+
+### Example Queries
+
+**PostgreSQL - Top 10 Highest Level Players:**
+```sql
+SELECT name, exp_level, exp_total
+FROM player_stats
+ORDER BY exp_level DESC, exp_total DESC
+LIMIT 10;
+```
+
+**PostgreSQL - Players Above Level 30:**
+```sql
+SELECT name, exp_level, exp_total, updated_at
+FROM player_stats
+WHERE exp_level >= 30
+ORDER BY exp_level DESC;
+```
+
+**PostgreSQL - Server Average Level:**
+```sql
+SELECT 
+  AVG(exp_level) as avg_level,
+  SUM(exp_total) as total_xp,
+  COUNT(*) as player_count
+FROM player_stats
+WHERE exp_level > 0;
+```
+
+### Performance Notes
+
+- NBT reading uses simplified tag searching (no full NBT library required)
+- Multi-threading scales with available CPU cores
+- Experience updates use the same async write system as statistics
+- Automatic table migration adds columns to existing databases without data loss
+
 ### Indexes created automatically
 
 - MongoDB
@@ -291,8 +385,8 @@ For the complete and up-to-date list, consult the Bukkit API documentation, as n
   - `top_stats`: unique index on `statKey`
 
 - PostgreSQL
-  - `player_stats`: primary key on `uuid`, index on `updated_at`, and a GIN index on `stats` (`jsonb_path_ops`) for future JSONB queries.
-  - `top_stats`: primary key on `stat_key`, index on `updated_at`.
+  - `player_stats`: primary key on `uuid`, index on `updated_at`, GIN index on `stats` (`jsonb_path_ops`), and **index on `exp_level DESC`** for fast level-based queries
+  - `top_stats`: primary key on `stat_key`, index on `updated_at`
 
 These indexes are created idempotently during provider startup.
 
@@ -308,11 +402,19 @@ The plugin creates two main structures: one for per-player statistics and one fo
 - `name`: string - Current player name (updated on each stat write)
 - `updatedAt`: long - Unix timestamp in milliseconds of last update
 - `stats`: object - Nested map of stat keys to values, e.g.:
-  ```
+  ```json
   {
     "UNTYPED:PLAY_ONE_MINUTE": 3600,
     "BLOCK:MINE_BLOCK:STONE": 150,
     "ENTITY:KILL_ENTITY:ZOMBIE": 42
+  }
+  ```
+- `experience`: object - Player experience data (added in v2.5+), e.g.:
+  ```json
+  {
+    "level": 42,
+    "totalExperience": 2847,
+    "expProgress": 0.65
   }
   ```
 
@@ -340,16 +442,20 @@ Tables are created in the specified schema (default: `public`). Uses JSONB for e
 - `name`: TEXT NOT NULL - Player name
 - `updated_at`: BIGINT NOT NULL - Unix timestamp in milliseconds
 - `stats`: JSONB NOT NULL DEFAULT '{}'::jsonb - Stats map (merged on upsert), e.g.:
-  ```
+  ```json
   {
     "UNTYPED:LEAVE_GAME": 5,
     "ITEM:USE_ITEM:BOW": 200
   }
   ```
+- `exp_level`: INT DEFAULT 0 - Player experience level (added in v2.5+)
+- `exp_total`: INT DEFAULT 0 - Total experience points accumulated
+- `exp_progress`: REAL DEFAULT 0.0 - Progress toward next level (0.0 to 1.0)
 
 Additional indexes:
 - `idx_player_stats_updated_at`: B-tree index on `updated_at` for time-based queries
 - `idx_player_stats_stats_gin`: GIN index on `stats` using `jsonb_path_ops` for fast lookups by stat key (e.g., query players with specific stat > value)
+- `idx_player_stats_exp_level`: B-tree index on `exp_level DESC` for fast experience-based leaderboard queries
 
 **top_stats** (default table: `top_stats`)
 
@@ -367,12 +473,25 @@ Additional indexes:
 Additional index:
 - `idx_top_stats_updated_at`: B-tree index on `updated_at`
 
-Schema creation is idempotent (IF NOT EXISTS). For production, ensure proper permissions and backups. Example query for top diamond miners (Postgres):
+Schema creation is idempotent (IF NOT EXISTS). Existing tables are automatically migrated to add experience columns using `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`. For production, ensure proper permissions and backups.
+
+Example queries (PostgreSQL):
+
+**Top diamond miners from precomputed leaderboard:**
 ```sql
 SELECT e->>'name' AS player, (e->>'value')::int AS count
 FROM top_stats, jsonb_array_elements(entries) AS e
 WHERE stat_key = 'BLOCK:MINE_BLOCK:DIAMOND_ORE'
 ORDER BY count DESC;
+```
+
+**Top 10 by experience level:**
+```sql
+SELECT name, exp_level, exp_total, 
+       to_timestamp(updated_at/1000) as last_updated
+FROM player_stats
+ORDER BY exp_level DESC, exp_total DESC
+LIMIT 10;
 ```
 
 ### Periodic top generation

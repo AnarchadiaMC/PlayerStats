@@ -177,6 +177,24 @@ public final class DatabaseManager implements Closable {
         });
     }
 
+    public void updatePlayerExperience(UUID playerUUID, String playerName, int level, int totalExperience, float expProgress) {
+        if (!configSnapshot.enabled()) return;
+        
+        if (executor == null) {
+            provider.updatePlayerExperience(playerUUID, playerName, level, totalExperience, expProgress);
+            dbLog("Updated player experience (sync fallback): " + playerName + " level=" + level);
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                provider.updatePlayerExperience(playerUUID, playerName, level, totalExperience, expProgress);
+                dbLog("Updated player experience: " + playerName + " level=" + level + " totalExp=" + totalExperience);
+            } catch (Exception e) {
+                MyLogger.logWarning("Async updatePlayerExperience failed: " + e.getMessage());
+            }
+        });
+    }
+
     @Override
     public void close() {
         try {
@@ -192,6 +210,7 @@ public final class DatabaseManager implements Closable {
         @Override public void start() { }
         @Override public void updatePlayerStat(UUID uuid, String playerName, String statKey, int value) { }
         @Override public void upsertTopList(String statKey, LinkedHashMap<String, Integer> top, int topSize) { }
+        @Override public void updatePlayerExperience(UUID uuid, String playerName, int level, int totalExperience, float expProgress) { }
         @Override public void close() { }
     }
 

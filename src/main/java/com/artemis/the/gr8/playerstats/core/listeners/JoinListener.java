@@ -32,6 +32,7 @@ public class JoinListener implements Listener {
         // Only update database stats, no need to reload entire plugin for new players
         // The plugin should handle new players gracefully without full reload
         updateTrackedStatsAsync(player);
+        updatePlayerExperienceAsync(player);
     }
 
     private void updateTrackedStatsAsync(Player player) {
@@ -71,6 +72,22 @@ public class JoinListener implements Listener {
                 } catch (Exception e) {
                     MyLogger.logWarning("Failed to update stat '" + key + "' for player " + player.getName() + ": " + e.getMessage());
                 }
+            }
+        });
+    }
+
+    private void updatePlayerExperienceAsync(Player player) {
+        DatabaseManager dbm = DatabaseManager.getInstance();
+        if (!dbm.config().enabled()) return;
+
+        Bukkit.getScheduler().runTaskAsynchronously(Main.getPluginInstance(), () -> {
+            try {
+                int level = player.getLevel();
+                int totalExp = player.getTotalExperience();
+                float expProgress = player.getExp();
+                dbm.updatePlayerExperience(player.getUniqueId(), player.getName(), level, totalExp, expProgress);
+            } catch (Exception e) {
+                MyLogger.logWarning("Failed to update experience for player " + player.getName() + ": " + e.getMessage());
             }
         });
     }

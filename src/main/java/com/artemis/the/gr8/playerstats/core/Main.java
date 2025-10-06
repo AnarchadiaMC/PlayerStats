@@ -1,11 +1,14 @@
 package com.artemis.the.gr8.playerstats.core;
-
 import com.artemis.the.gr8.playerstats.api.PlayerStats;
 import com.artemis.the.gr8.playerstats.api.RequestGenerator;
 import com.artemis.the.gr8.playerstats.api.StatNumberFormatter;
 import com.artemis.the.gr8.playerstats.api.StatTextFormatter;
 import com.artemis.the.gr8.playerstats.api.StatManager;
-import com.artemis.the.gr8.playerstats.core.commands.*;
+import com.artemis.the.gr8.playerstats.core.commands.StatCommand;
+import com.artemis.the.gr8.playerstats.core.commands.ExcludeCommand;
+import com.artemis.the.gr8.playerstats.core.commands.ReloadCommand;
+import com.artemis.the.gr8.playerstats.core.commands.ShareCommand;
+import com.artemis.the.gr8.playerstats.core.commands.TabCompleter;
 import com.artemis.the.gr8.playerstats.core.msg.msgutils.NumberFormatter;
 import com.artemis.the.gr8.playerstats.core.config.ConfigHandler;
 import com.artemis.the.gr8.playerstats.core.db.DatabaseManager;
@@ -18,11 +21,11 @@ import com.artemis.the.gr8.playerstats.core.statistic.StatRequestManager;
 import com.artemis.the.gr8.playerstats.core.utils.Closable;
 import com.artemis.the.gr8.playerstats.core.utils.OfflinePlayerHandler;
 import com.artemis.the.gr8.playerstats.core.utils.Reloadable;
+import com.artemis.the.gr8.playerstats.core.utils.PlayerDataReader;
 import com.artemis.the.gr8.playerstats.core.db.StatKeyUtil;
 import com.artemis.the.gr8.playerstats.core.msg.OutputManager;
 import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
-
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
@@ -38,6 +41,12 @@ import java.util.List;
 import org.bukkit.Statistic;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.World;
+
+import java.io.File;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * PlayerStats' Main class
@@ -153,6 +162,55 @@ public final class Main extends JavaPlugin implements PlayerStats {
         }.runTaskTimerAsynchronously(this, periodTicks, periodTicks);
     }
 
+    /**
+     * Read all player data files and populate the experience database.
+     * This is done asynchronously using multi-threading.
+     */
+    private void populateExperienceDataAsync(DatabaseManager dbm) {
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                long startTime = System.currentTimeMillis();
+                MyLogger.logMediumLevelMsg("Starting experience data population from player files...");
+                
+                // Get the world directory (use the first world)
+                World world = Bukkit.getWorlds().get(0);
+                File worldDir = world.getWorldFolder();
+                
+                // Use a ConcurrentHashMap to store results from multi-threaded reading
+                ConcurrentHashMap<java.util.UUID, PlayerDataReader.ExperienceData> expDataMap = new ConcurrentHashMap<>();
+                
+                // Use ForkJoinPool for parallel reading of player files
+                int playerCount = ForkJoinPool.commonPool().submit(() -> 
+                    PlayerDataReader.readAllPlayerExperience(worldDir, expDataMap)
+                ).join();
+                
+                MyLogger.logMediumLevelMsg("Read experience data from " + playerCount + " player files");
+                
+                // Now write the data to the database asynchronously
+                int written = 0;
+                for (var entry : expDataMap.entrySet()) {
+                    java.util.UUID uuid = entry.getKey();
+                    PlayerDataReader.ExperienceData expData = entry.getValue();
+                    
+                    // Get player name from OfflinePlayer
+                    OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
+                    String playerName = offlinePlayer.getName();
+                    if (playerName == null || playerName.isEmpty()) {
+                        playerName = uuid.toString().substring(0, 8); // Use first 8 chars of UUID as fallback
+                    }
+                    
+                    dbm.updatePlayerExperience(uuid, playerName, expData.level(), expData.totalExperience(), expData.expProgress());
+                    written++;
+                }
+                
+                long elapsed = System.currentTimeMillis() - startTime;
+                MyLogger.logMediumLevelMsg("Experience population complete: wrote " + written + " entries in " + elapsed + "ms");
+            } catch (Exception e) {
+                MyLogger.logWarning("Failed to populate experience data: " + e.getMessage());
+            }
+        });
+    }
+
     @Override
     public void onDisable() {
         shuttingDown = true;
@@ -216,6 +274,10 @@ public final class Main extends JavaPlugin implements PlayerStats {
         registerClosable(dbm);
         registerReloadable(dbm::reloadFromConfig);
 
+        // Optionally populate experience data from player files on startup
+        if (dbm.config().enabled()) {
+            populateExperienceDataAsync(dbm);
+        }
         // Optionally generate top lists on load
         if (dbm.config().enabled() && dbm.config().generateTopOnLoad()) {
             generateTopListsAsync(dbm);

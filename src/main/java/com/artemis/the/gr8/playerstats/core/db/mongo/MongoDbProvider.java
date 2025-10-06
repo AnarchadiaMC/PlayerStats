@@ -121,6 +121,26 @@ public final class MongoDbProvider implements DbProvider {
     }
 
     @Override
+    public void updatePlayerExperience(UUID uuid, String playerName, int level, int totalExperience, float expProgress) {
+        if (client == null) return;
+        if (uuid == null) return;
+        String safeName = sanitizePlayerName(playerName);
+        int safeLevel = Math.max(0, level);
+        int safeTotalExp = Math.max(0, totalExperience);
+        float safeProgress = Math.max(0.0f, Math.min(1.0f, expProgress));
+        Document filter = new Document("uuid", uuid.toString());
+        long now = Instant.now().toEpochMilli();
+        Document update = new Document("$set", new Document()
+                .append("name", safeName)
+                .append("updatedAt", now)
+                .append("experience.level", safeLevel)
+                .append("experience.totalExperience", safeTotalExp)
+                .append("experience.expProgress", safeProgress)
+        );
+        playerCol.updateOne(filter, update, new UpdateOptions().upsert(true));
+    }
+
+    @Override
     public void close() {
         if (client != null) {
             try { 

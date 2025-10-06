@@ -81,7 +81,10 @@ public final class PostgresProvider implements DbProvider {
                     "uuid UUID PRIMARY KEY," +
                     "name TEXT NOT NULL," +
                     "updated_at BIGINT NOT NULL," +
-                    "stats JSONB NOT NULL DEFAULT '{}'::jsonb" +
+                    "stats JSONB NOT NULL DEFAULT '{}'::jsonb," +
+                    "exp_level INT DEFAULT 0," +
+                    "exp_total INT DEFAULT 0," +
+                    "exp_progress REAL DEFAULT 0.0" +
                     ")");
             st.execute("CREATE TABLE IF NOT EXISTS " + qualified(topTable) + " (" +
                     "stat_key TEXT PRIMARY KEY," +
@@ -89,9 +92,21 @@ public final class PostgresProvider implements DbProvider {
                     "updated_at BIGINT NOT NULL," +
                     "entries JSONB NOT NULL" +
                     ")");
+            
+            // Migrate existing tables - add experience columns if they don't exist
+            try {
+                st.execute("ALTER TABLE " + qualified(playerTable) + " ADD COLUMN IF NOT EXISTS exp_level INT DEFAULT 0");
+                st.execute("ALTER TABLE " + qualified(playerTable) + " ADD COLUMN IF NOT EXISTS exp_total INT DEFAULT 0");
+                st.execute("ALTER TABLE " + qualified(playerTable) + " ADD COLUMN IF NOT EXISTS exp_progress REAL DEFAULT 0.0");
+            } catch (SQLException migrationEx) {
+                // Log but don't fail - columns might already exist on older PostgreSQL versions
+                MyLogger.logWarning("Postgres column migration: " + migrationEx.getMessage());
+            }
+            
             // Indexes for common lookups and maintenance
             st.execute("CREATE INDEX IF NOT EXISTS idx_" + tableOnly(playerTable) + "_updated_at ON " + qualified(playerTable) + " (updated_at)");
             st.execute("CREATE INDEX IF NOT EXISTS idx_" + tableOnly(playerTable) + "_stats_gin ON " + qualified(playerTable) + " USING GIN (stats jsonb_path_ops)");
+            st.execute("CREATE INDEX IF NOT EXISTS idx_" + tableOnly(playerTable) + "_exp_level ON " + qualified(playerTable) + " (exp_level DESC)");
             st.execute("CREATE INDEX IF NOT EXISTS idx_" + tableOnly(topTable) + "_updated_at ON " + qualified(topTable) + " (updated_at)");
         } catch (SQLException e) {
             MyLogger.logWarning("Postgres schema/table initialization failed: " + e.getMessage());
@@ -151,6 +166,38 @@ public final class PostgresProvider implements DbProvider {
             ps.executeUpdate();
         } catch (SQLException e) {
             MyLogger.logWarning("Postgres upsertTopList failed: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void updatePlayerExperience(UUID uuid, String playerName, int level, int totalExperience, float expProgress) {
+        if (dataSource == null) return;
+        if (uuid == null) return;
+        String safeName = sanitizePlayerName(playerName);
+        int safeLevel = Math.max(0, level);
+        int safeTotalExp = Math.max(0, totalExperience);
+        float safeProgress = Math.max(0.0f, Math.min(1.0f, expProgress));
+        long now = Instant.now().toEpochMilli();
+
+        String sql = "INSERT INTO " + qualified(playerTable) +
+                " (uuid, name, updated_at, stats, exp_level, exp_total, exp_progress) VALUES (?, ?, ?, '{}'::jsonb, ?, ?, ?) " +
+                "ON CONFLICT (uuid) DO UPDATE SET " +
+                "name = EXCLUDED.name, " +
+                "updated_at = EXCLUDED.updated_at, " +
+                "exp_level = EXCLUDED.exp_level, " +
+                "exp_total = EXCLUDED.exp_total, " +
+                "exp_progress = EXCLUDED.exp_progress";
+
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, uuid);
+            ps.setString(2, safeName);
+            ps.setLong(3, now);
+            ps.setInt(4, safeLevel);
+            ps.setInt(5, safeTotalExp);
+            ps.setFloat(6, safeProgress);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            MyLogger.logWarning("Postgres updatePlayerExperience failed: " + e.getMessage());
         }
     }
 
