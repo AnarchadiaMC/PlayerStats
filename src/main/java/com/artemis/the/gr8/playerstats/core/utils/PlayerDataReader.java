@@ -51,6 +51,7 @@ public final class PlayerDataReader {
         }
 
         int successCount = 0;
+        int failedCount = 0;
         for (File playerFile : playerFiles) {
             try {
                 String fileName = playerFile.getName();
@@ -61,45 +62,36 @@ public final class PlayerDataReader {
                 if (expData != null) {
                     resultMap.put(uuid, expData);
                     successCount++;
+                } else {
+                    failedCount++;
                 }
             } catch (IllegalArgumentException e) {
-                MyLogger.logWarning("Invalid UUID in player file name: " + playerFile.getName());
+                // Invalid UUID in filename - skip silently (likely corrupted or very old file)
+                failedCount++;
+            } catch (StringIndexOutOfBoundsException e) {
+                // Malformed filename - skip silently
+                failedCount++;
             } catch (Exception e) {
-                MyLogger.logWarning("Failed to read player data from " + playerFile.getName() + ": " + e.getMessage());
+                // Any other error - skip silently to continue processing
+                failedCount++;
             }
         }
 
+        if (failedCount > 0) {
+            MyLogger.logLowLevelMsg("Skipped " + failedCount + " player files due to invalid format or errors");
+        }
         return successCount;
     }
 
     /**
-     * Read experience data from a single player data file using Bukkit's native NBT support.
+     * Read experience data from a single player data file using direct NBT reading.
      *
      * @param playerFile The player data file (.dat)
      * @return ExperienceData or null if reading failed
      */
     private static ExperienceData readPlayerExperience(File playerFile) {
-        try {
-            // Use Bukkit's built-in NBT reading through OfflinePlayer
-            // This is safer and more compatible than manual NBT parsing
-            String fileName = playerFile.getName();
-            String uuidString = fileName.substring(0, fileName.length() - 4);
-            UUID uuid = UUID.fromString(uuidString);
-            
-            // Get the OfflinePlayer - Bukkit will load the data from disk
-            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
-            
-            // Try to get experience from the player object
-            // Note: This only works reliably if the player has joined before
-            // For true offline reading, we'd need direct NBT access
-            if (offlinePlayer.hasPlayedBefore()) {
-                // We can't directly read exp from OfflinePlayer, so we need manual NBT reading
-                return readNBTData(playerFile);
-            }
-        } catch (Exception e) {
-            MyLogger.logWarning("Failed to read experience from " + playerFile.getName() + ": " + e.getMessage());
-        }
-        return null;
+        // Directly read NBT data without validation - errors handled by caller
+        return readNBTData(playerFile);
     }
 
     /**

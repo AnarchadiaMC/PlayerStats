@@ -153,6 +153,8 @@ public final class Main extends JavaPlugin implements PlayerStats {
             public void run() {
                 try {
                     if (dbm.config().enabled()) {
+                        // First update offline experience data, then generate top lists
+                        populateExperienceDataAsync(dbm);
                         generateTopListsAsync(dbm);
                     }
                 } catch (Exception e) {
